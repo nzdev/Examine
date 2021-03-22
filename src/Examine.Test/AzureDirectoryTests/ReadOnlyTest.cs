@@ -20,13 +20,14 @@ using Version = Lucene.Net.Util.Version;
 using Examine.LuceneEngine.MergePolicies;
 using Examine.LuceneEngine.MergeShedulers;
 using Examine.LuceneEngine.DeletePolicies;
+using Examine.RemoteDirectory;
 
 namespace Examine.Test.AzureDirectory
 {
     [TestFixture]
     public class ReadOnlyTest
     {
-        private const string ContainerName = "examine-azure-directory-test";
+        private const string ContainerName = "examine-azure-syncdirectory-test";
         private readonly TestContentService _contentService = new TestContentService();
         
 
@@ -54,25 +55,17 @@ namespace Examine.Test.AzureDirectory
             System.IO.Directory.CreateDirectory(tempFolder2);
 
             var storageAccount = "UseDevelopmentStorage=true";
-
-            var cacheDirectory1 = new SimpleFSDirectory(new DirectoryInfo(tempFolder1));
-            var writeDir = new AzureLuceneDirectory(
-                storageAccount,
-                ContainerName,
-                cacheDirectory1,
-                rootFolder: temp1,
-                isReadOnly: false);
+            var directory = new DirectoryInfo(tempFolder1);
+            var cacheDirectory1 = new SimpleFSDirectory(directory);
+            var remoteDirectory = new AzureRemoteDirectory(storageAccount, ContainerName,directory.Name);
+            var writeDir = new Examine.RemoteDirectory.RemoteSyncDirectory(remoteDirectory,
+                cacheDirectory1);
 
             writeDir.SetMergePolicyAction(e => new NoMergePolicy(e));
             writeDir.SetMergeScheduler(new NoMergeSheduler());
             writeDir.SetDeletion(new NoDeletionPolicy());
-            var cacheDirectory2 = new SimpleFSDirectory(new DirectoryInfo(tempFolder2));
-            var readDir = new AzureReadOnlyLuceneDirectory(
-                storageAccount,
-                ContainerName,
-                tempFolder2,
-                ContainerName,
-                rootFolder: temp1);
+            var dir2 = new DirectoryInfo(tempFolder2);
+            var readDir = new RemoteReadOnlyLuceneSyncDirectory(remoteDirectory, dir2.FullName, "test" );
 
             readDir.SetMergePolicyAction(e => new NoMergePolicy(e));
             readDir.SetMergeScheduler(new NoMergeSheduler());
@@ -144,7 +137,7 @@ namespace Examine.Test.AzureDirectory
             }
         }
 
-        private void AsssertInSync(AzureLuceneDirectory writeDir, AzureReadOnlyLuceneDirectory readDir, TestIndex readSearcher,string query)
+        private void AsssertInSync(RemoteSyncDirectory writeDir, RemoteReadOnlyLuceneSyncDirectory readDir, TestIndex readSearcher,string query)
         {
             var search = readSearcher.GetSearcher().CreateQuery().NativeQuery(query);
             var searchResults = search.Execute();

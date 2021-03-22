@@ -1,14 +1,17 @@
 using System.Configuration;
 using System.IO;
+using Examine.Logging;
 using Examine.LuceneEngine.DeletePolicies;
 using Examine.LuceneEngine.Directories;
 using Examine.LuceneEngine.MergePolicies;
 using Examine.LuceneEngine.MergeShedulers;
 using Examine.Providers;
+using Examine.RemoteDirectory;
 using Lucene.Net.Analysis;
 using Lucene.Net.Index;
 using Lucene.Net.Store;
 using static Lucene.Net.Index.IndexWriter;
+using Directory = Lucene.Net.Store.Directory;
 
 namespace Examine.AzureDirectory
 {
@@ -17,15 +20,14 @@ namespace Examine.AzureDirectory
     /// </summary>
     public class AzureDirectoryFactory : SyncTempEnvDirectoryFactory, IDirectoryFactory
     {
+        private readonly ILoggingService _loggingService;
         private readonly bool _isReadOnly;
-        public AzureDirectoryFactory()
+        public AzureDirectoryFactory() : this(new TraceLoggingService())
         {
-            _isReadOnly = false;
         }
-
-        public AzureDirectoryFactory(bool isReadOnly)
+        public AzureDirectoryFactory(ILoggingService loggingService)
         {
-            _isReadOnly = isReadOnly;
+            _loggingService = loggingService;
         }
 
         /// <summary>
@@ -37,6 +39,7 @@ namespace Examine.AzureDirectory
         /// Get/set the config container key
         /// </summary>
         public static string ConfigContainerKey { get; set; } = "examine:AzureStorageContainer";
+
 
         /// <summary>
         /// Return the AzureDirectory.
@@ -52,32 +55,28 @@ namespace Examine.AzureDirectory
         /// </returns>
         public override Lucene.Net.Store.Directory CreateDirectory(DirectoryInfo luceneIndexFolder)
         {
-            var directory = new AzureLuceneDirectory(
-                GetStorageAccountConnectionString(),
-                GetContainerName(),
-                GetLocalCacheDirectory(luceneIndexFolder),
-                rootFolder: luceneIndexFolder.Name,
-                isReadOnly: GetIsReadOnly());
-
-            directory.IsReadOnly = _isReadOnly;
+            var directory = new RemoteSyncDirectory(
+                new AzureRemoteDirectory(GetStorageAccountConnectionString(), GetContainerName(),
+                    luceneIndexFolder.Name, _loggingService),
+                GetLocalCacheDirectory(luceneIndexFolder), _loggingService);
             directory.SetMergePolicyAction(e => new NoMergePolicy(e));
             directory.SetMergeScheduler(new NoMergeSheduler());
             directory.SetDeletion(new NoDeletionPolicy());
             return directory;
         }
-
-
         // Explicit implementation, see https://github.com/Shazwazza/Examine/pull/153
-        Lucene.Net.Store.Directory IDirectoryFactory.CreateDirectory(DirectoryInfo luceneIndexFolder) => CreateDirectory(luceneIndexFolder);
+        Lucene.Net.Store.Directory IDirectoryFactory.CreateDirectory(DirectoryInfo luceneIndexFolder) =>
+            CreateDirectory(luceneIndexFolder);
 
         /// <summary>
         /// Gets the Local Cache Lucence Directory
         /// </summary>
         /// <param name="luceneIndexFolder">The lucene index folder.</param>
-        /// <returns>The <see cref="Lucene.Net.Store.Directory"/> used by Lucence as the local cache directory</returns>
+        /// <returns>The <see cref="Lucene.Net.Store.Directory"/> used by Lucence as the local cache syncDirectory</returns>
         protected virtual Lucene.Net.Store.Directory GetLocalCacheDirectory(DirectoryInfo luceneIndexFolder)
         {
-            return new SimpleFSDirectory(luceneIndexFolder);
+            var tempFolder = GetLocalStorageDirectory(luceneIndexFolder);
+            return new SimpleFSDirectory(tempFolder);
         }
 
         /// <summary>
@@ -100,13 +99,6 @@ namespace Examine.AzureDirectory
             return ConfigurationManager.AppSettings[ConfigContainerKey];
         }
 
-        /// <summary>
-        /// Get whether the index is readonly
-        /// </summary>
-        /// <returns></returns>
-        protected virtual bool GetIsReadOnly()
-        {
-            return _isReadOnly;
-        }
+        
     }
 }

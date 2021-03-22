@@ -10,7 +10,7 @@ namespace Examine.LuceneEngine.Search
     /// An implementation of the fluent API boolean operations
     /// </summary>
     [DebuggerDisplay("{_search}")]
-    public class LuceneBooleanOperation : LuceneBooleanOperationBase
+    public class LuceneBooleanOperation : LuceneBooleanOperationBase, IQueryExecutor
     {
         private readonly LuceneSearchQuery _search;
         
@@ -52,6 +52,10 @@ namespace Examine.LuceneEngine.Search
 
         public override IOrdering OrderByDescending(params SortableField[] fields) => _search.OrderByDescending(fields);
 
+        #endregion
+
+        #region Select Fields
+
         public override IOrdering SelectFields(params string[] fieldNames) => _search.SelectFieldsInternal(fieldNames);
 
         public override IOrdering SelectFields(ISet<string> fieldNames) => _search.SelectFieldsInternal(fieldNames);
@@ -61,7 +65,6 @@ namespace Examine.LuceneEngine.Search
         public override IOrdering SelectFirstFieldOnly() => _search.SelectFirstFieldOnlyInternal();
 
         public override IOrdering SelectAllFields() => _search.SelectAllFieldsInternal();
-
 
         #endregion
 

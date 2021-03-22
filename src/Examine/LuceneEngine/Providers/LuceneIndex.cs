@@ -50,6 +50,47 @@ namespace Examine.LuceneEngine.Providers
             if (luceneDirectory is ExamineDirectory dir)
             {
                 isReadonly = dir.IsReadOnly;
+                ExamineDir = dir;
+                dir.HandleOutOfSyncEvent += DirOnHandleOutOfSyncEvent;
+            }
+        }
+
+        public ExamineDirectory ExamineDir { get; set; }
+
+        private void DirOnHandleOutOfSyncEvent(object sender, EventArgs e)
+        {
+            lock (ExamineDir.RebuildLock)
+            {
+                if (_searcher.IsValueCreated)
+                {
+                    var value =  _searcher.Value;
+                    value.Dispose();
+                    
+                    _searcher = new Lazy<LuceneSearcher>(CreateSearcher);
+
+                }
+
+                if (_writer != null)
+                {
+                    try
+                    {
+                        OpenReaderTracker.Current.CloseStaleReaders(_writer.Directory, TimeSpan.FromMinutes(2));
+                        WriterTracker.Current.MapAsOld(_writer.Directory);
+                        WriterTracker.Current.CloseStaleWriters(_writer.Directory, TimeSpan.FromMinutes(2));
+                    }
+                    catch (Exception)
+                    {
+                        //There could be not readers so swallow exception
+                    }
+                  
+                }
+               
+                _writer = null;
+              //  GetIndexWriter(true);
+
+               
+
+                
             }
         }
 
@@ -76,7 +117,6 @@ namespace Examine.LuceneEngine.Providers
             : base(name, fieldDefinitions ?? new FieldDefinitionCollection(), validator)
         {
             _indexQueue = new BlockingCollection<IEnumerable<IndexOperation>>(queueCapacity);
-            _disposer = new DisposableIndex(this);
             _committer = new IndexCommiter(this);
 
             LuceneIndexFolder = null;
@@ -87,12 +127,17 @@ namespace Examine.LuceneEngine.Providers
             if (luceneDirectory is ExamineDirectory dir)
             {
                 isReadonly = dir.IsReadOnly;
+                dir.HandleOutOfSyncEvent += DirOnHandleOutOfSyncEvent;
             }
+
             //initialize the field types
             _fieldValueTypeCollection =
                 new Lazy<FieldValueTypeCollection>(() => CreateFieldValueTypes(indexValueTypesFactory));
             _searcher = new Lazy<LuceneSearcher>(CreateSearcher);
+
             WaitForIndexQueueOnShutdown = true;
+            _cancellationTokenSource = new CancellationTokenSource();
+            _cancellationToken = _cancellationTokenSource.Token;
         }
 
 
@@ -105,12 +150,12 @@ namespace Examine.LuceneEngine.Providers
         /// <param name="validator"></param>
         /// <param name="indexValueTypesFactory"></param>
         public LuceneIndex(
-            string name,
-            FieldDefinitionCollection fieldDefinitions,
-            IndexWriter writer,
-            IValueSetValidator validator = null,
-            IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null)
-            : this(name, fieldDefinitions, writer, DefaultQueueCapacity, validator, indexValueTypesFactory)
+                string name,
+                FieldDefinitionCollection fieldDefinitions,
+                IndexWriter writer,
+                IValueSetValidator validator = null,
+                IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null)
+                : this(name, fieldDefinitions, writer, DefaultQueueCapacity, validator, indexValueTypesFactory)
         {
         }
 
@@ -135,7 +180,6 @@ namespace Examine.LuceneEngine.Providers
             : base(name, fieldDefinitions, validator)
         {
             _indexQueue = new BlockingCollection<IEnumerable<IndexOperation>>(queueCapacity);
-            _disposer = new DisposableIndex(this);
             _committer = new IndexCommiter(this);
 
             _writer = writer ?? throw new ArgumentNullException(nameof(writer));
@@ -147,14 +191,20 @@ namespace Examine.LuceneEngine.Providers
             LuceneIndexFolder = null;
             _searcher = new Lazy<LuceneSearcher>(CreateSearcher);
             WaitForIndexQueueOnShutdown = true;
+            _cancellationTokenSource = new CancellationTokenSource();
+            _cancellationToken = _cancellationTokenSource.Token;
         }
 
         #endregion
 
         #region Constants & Fields
 
+        private readonly Directory _directory;
+        private FileStream _logOutput;
+        private bool _disposedValue;
+        private readonly IndexCommiter _committer;
         private volatile IndexWriter _writer;
-
+        private bool isReadonly = false;
         private int _activeWrites = 0;
         private int _activeAddsOrDeletes = 0;
 
@@ -202,7 +252,7 @@ namespace Examine.LuceneEngine.Providers
         /// </summary>
         private volatile bool _isIndexing = false;
 
-        private readonly Lazy<LuceneSearcher> _searcher;
+        private Lazy<LuceneSearcher> _searcher;
 
         private bool? _exists;
 
@@ -211,11 +261,12 @@ namespace Examine.LuceneEngine.Providers
         /// </summary>
         public override ISearcher GetSearcher()
         {
-            if(this._directory is ExamineDirectory examineDirectory && examineDirectory.IsReadOnly)
+            if (this._directory is ExamineDirectory examineDirectory && examineDirectory.IsReadOnly)
             {
-               examineDirectory.SetDirty();
-               examineDirectory.CheckDirtyWithoutWriter();
+                examineDirectory.SetDirty();
+                examineDirectory.CheckDirtyWithoutWriter();
             }
+
             return _searcher.Value;
         }
 
@@ -235,7 +286,12 @@ namespace Examine.LuceneEngine.Providers
         /// <summary>
         /// Used to cancel the async operation
         /// </summary>
-        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private CancellationTokenSource _cancellationTokenSource;
+
+        /// <summary>
+        /// Gets the token from the token source
+        /// </summary>
+        private CancellationToken _cancellationToken;
 
         #endregion
 
@@ -289,7 +345,7 @@ namespace Examine.LuceneEngine.Providers
         /// <summary>
         /// returns true if the indexer has been canceled (app is shutting down)
         /// </summary>
-        protected bool IsCancellationRequested => _cancellationTokenSource.IsCancellationRequested;
+        protected bool IsCancellationRequested => _cancellationToken.IsCancellationRequested;
 
         #endregion
 
@@ -392,7 +448,7 @@ namespace Examine.LuceneEngine.Providers
         public void EnsureIndex(bool forceOverwrite)
         {
             if (!forceOverwrite && _exists.HasValue && _exists.Value) return;
-            if (_directory is ExamineDirectory examineDirectory && examineDirectory.IsReadOnly) return;
+            if (isReadonly) return;
             var indexExists = IndexExists();
             if (!indexExists || forceOverwrite)
             {
@@ -444,7 +500,7 @@ namespace Examine.LuceneEngine.Providers
 
                                 //remove all of the index data
                                 _writer.DeleteAll();
-                                if(_writer is ExamineIndexWriter examineIndexWriter)
+                                if (_writer is ExamineIndexWriter examineIndexWriter)
                                 {
                                     examineIndexWriter.ExamineCommit();
                                 }
@@ -459,6 +515,7 @@ namespace Examine.LuceneEngine.Providers
                             finally
                             {
                                 _cancellationTokenSource = new CancellationTokenSource();
+                                _cancellationToken = _cancellationTokenSource.Token;
                             }
                         }
                     }
@@ -493,14 +550,9 @@ namespace Examine.LuceneEngine.Providers
                 //create the writer (this will overwrite old index files)
 
                 writer = new ExamineIndexWriter(dir, FieldAnalyzer, true, IndexWriter.MaxFieldLength.UNLIMITED);
-                    // clear out current scheduler and set the error logging one
-                    using (writer.MergeScheduler)
-                    {
-                    }
-
-                    writer.SetMergeScheduler(new ErrorLoggingConcurrentMergeScheduler(Name,
-                        (s, e) => OnIndexingError(new IndexingErrorEventArgs(this, s, "-1", e))));
-               
+                writer.MergeScheduler.Dispose();
+                writer.SetMergeScheduler(new ErrorLoggingConcurrentMergeScheduler(Name,
+                    (s, e) => OnIndexingError(new IndexingErrorEventArgs(this, s, "-1", e))));
             }
             catch (Exception ex)
             {
@@ -520,7 +572,7 @@ namespace Examine.LuceneEngine.Providers
         /// </summary>
         public override void CreateIndex()
         {
-            if (_cancellationTokenSource.IsCancellationRequested)
+            if (IsCancellationRequested)
             {
                 OnIndexingError(new IndexingErrorEventArgs(this,
                     "Cannot create a new index, indexing cancellation has been requested", null, null));
@@ -566,7 +618,7 @@ namespace Examine.LuceneEngine.Providers
         /// </remarks>
         public void OptimizeIndex()
         {
-            if (_cancellationTokenSource.IsCancellationRequested)
+            if (IsCancellationRequested)
             {
                 OnIndexingError(
                     new IndexingErrorEventArgs(this, "Cannot optimize index, index cancellation has been requested",
@@ -786,6 +838,9 @@ namespace Examine.LuceneEngine.Providers
             indexTypeValueType.AddValue(doc, valueSet.ItemType);
 
             //copy to a new dictionary, there has been cases of an exception "Collection was modified; enumeration operation may not execute."
+            // TODO: This is because ValueSet can be shared between indexes (same value set passed to each)
+            // we should remove this since this will cause mem overheads and it's not actually going to fix the problem since it's only copying
+            // this dictionary but not the entire value set
             foreach (var field in CopyDictionary(valueSet.Values))
             {
                 //check if we have a defined one
@@ -856,19 +911,20 @@ namespace Examine.LuceneEngine.Providers
                 var isNewTask = false;
                 if (!_isIndexing)
                 {
+                    // NOTE: If the cancellation token is canceled it just means the tasks will not run. Previously we were passing
+                    // in the cancelation token via the source like _cancellationTokenSource.Token which will throw an exception if
+                    // it's disposed and that was incorrect. Now we just pass in the token, an exception will not occur and the task
+                    // will respect the token.
+
                     //don't run the worker if it's currently running since it will just pick up the rest of the queue during its normal operation                    
                     lock (_indexingLocker)
                     {
                         if (!_isIndexing && (_asyncTask == null || _asyncTask.IsCompleted))
                         {
-                            if (!_cancellationTokenSource.IsCancellationRequested)
+                            isNewTask = true;
+
+                            using (ExecutionContext.SuppressFlow())
                             {
-                                isNewTask = true;
-
-                                // TODO: Like the note below says, the token can be canceled before running here
-                                // so potentially that cancelation doesn't happen inside the same _indexingLocker and
-                                // have seen exceptions when passing this to Run or ContinueWith which we should prevent
-
                                 _asyncTask = Task.Run(
                                     () =>
                                     {
@@ -876,47 +932,39 @@ namespace Examine.LuceneEngine.Providers
                                         Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
                                         return ProcessQueueItemsLocked();
                                     },
-                                    _cancellationTokenSource.Token);
+                                    _cancellationToken);
+                            }
 
-                                // when the task is done call the complete callback
-                                // See https://blog.stephencleary.com/2015/01/a-tour-of-task-part-7-continuations.html
-                                // - need to explicitly define TaskContinuationOptions.DenyChildAttach + TaskScheduler.Default
-                                if (onComplete != null)
+                            // when the task is done call the complete callback
+                            // See https://blog.stephencleary.com/2015/01/a-tour-of-task-part-7-continuations.html
+                            // - need to explicitly define TaskContinuationOptions.DenyChildAttach + TaskScheduler.Default
+                            if (onComplete != null)
+                            {
+                                using (ExecutionContext.SuppressFlow())
                                 {
-                                    // it is possible that the cancelation token can be canceled when this is called which will throw an exception
-                                    // and is only caught by the unhandled exception handler so we need to be pro-active here
-                                    if (!_cancellationTokenSource.IsCancellationRequested)
-                                    {
-                                        _asyncTask.ContinueWith(
-                                            task => onComplete?.Invoke(new IndexOperationEventArgs(this, task.Result)),
-                                            _cancellationTokenSource.Token,
-                                            TaskContinuationOptions.OnlyOnRanToCompletion |
-                                            TaskContinuationOptions.DenyChildAttach,
-                                            TaskScheduler.Default);
-                                    }
+                                    _asyncTask.ContinueWith(
+                                        task => onComplete?.Invoke(new IndexOperationEventArgs(this, task.Result)),
+                                        _cancellationToken,
+                                        TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.DenyChildAttach,
+                                        TaskScheduler.Default);
                                 }
                             }
                         }
                     }
-                }
 
-                if (!isNewTask)
-                {
-                    // This executes when calls to SafelyProcessQueueItems are made and the queue is already being consumed (i.e. no worker thread is spawned).                    
-                    // This adds the callback to the queue since this method can be called multiple times with different callbacks
-                    // but there is only one queue processing all requests. 
-                    // This ensures that all callbacks passed are executed, not just the first.
-                    // See https://blog.stephencleary.com/2015/01/a-tour-of-task-part-7-continuations.html
-                    // - need to explicitly define TaskContinuationOptions.DenyChildAttach + TaskScheduler.Default
-                    if (onComplete != null)
+                    if (!isNewTask)
                     {
-                        // it is possible that the cancelation token can be canceled when this is called which will throw an exception
-                        // and is only caught by the unhandled exception handler so we need to be pro-active here
-                        if (!_cancellationTokenSource.IsCancellationRequested)
+                        // This executes when calls to SafelyProcessQueueItems are made and the queue is already being consumed (i.e. no worker thread is spawned).                    
+                        // This adds the callback to the queue since this method can be called multiple times with different callbacks
+                        // but there is only one queue processing all requests. 
+                        // This ensures that all callbacks passed are executed, not just the first.
+                        // See https://blog.stephencleary.com/2015/01/a-tour-of-task-part-7-continuations.html
+                        // - need to explicitly define TaskContinuationOptions.DenyChildAttach + TaskScheduler.Default
+                        if (onComplete != null)
                         {
                             _asyncTask?.ContinueWith(
                                 task => onComplete?.Invoke(new IndexOperationEventArgs(this, task.Result)),
-                                _cancellationTokenSource.Token,
+                                _cancellationToken,
                                 TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.DenyChildAttach,
                                 TaskScheduler.Default);
                         }
@@ -935,7 +983,7 @@ namespace Examine.LuceneEngine.Providers
             {
                 lock (_indexingLocker)
                 {
-                    if (!_isIndexing && !_cancellationTokenSource.IsCancellationRequested)
+                    if (!_isIndexing && !IsCancellationRequested)
                     {
                         _isIndexing = true;
 
@@ -1024,7 +1072,7 @@ namespace Examine.LuceneEngine.Providers
                 else
                 {
                     //index while we're not cancelled and while there's items in there
-                    while (!_cancellationTokenSource.IsCancellationRequested && _indexQueue.TryTake(out var batch))
+                    while (!IsCancellationRequested && _indexQueue.TryTake(out var batch))
                         foreach (var item in batch)
                             if (ProcessQueueItem(item, writer))
                                 indexedNodes++;
@@ -1035,11 +1083,12 @@ namespace Examine.LuceneEngine.Providers
                 if (!RunAsync || block)
                 {
                     //commit the changes (this will process the deletes too)
-                    if(_directory is ExamineDirectory examineDirectory)
+                    if (_directory is ExamineDirectory examineDirectory)
                     {
                         //Calling commit causes fdt,fdx,fnm,frq,nrm,prx,tii,tis,tvd,tvf,tvx files to be deleted.
                         //TODO: 
                     }
+
                     if (writer is ExamineIndexWriter examineIndexWriter)
                     {
                         examineIndexWriter.ExamineCommit();
@@ -1048,8 +1097,6 @@ namespace Examine.LuceneEngine.Providers
                     {
                         writer.Commit();
                     }
-
-                    writer.WaitForMerges();
                 }
                 else
                 {
@@ -1097,7 +1144,7 @@ namespace Examine.LuceneEngine.Providers
                     if (_timer == null)
                     {
                         //if we've been cancelled then be sure to commit now
-                        if (_index._cancellationTokenSource.IsCancellationRequested)
+                        if (_index.IsCancellationRequested)
                         {
                             //perform the commit
                             if (_index._writer is ExamineIndexWriter examineIndexWriter)
@@ -1120,7 +1167,7 @@ namespace Examine.LuceneEngine.Providers
                     else
                     {
                         //if we've been cancelled then be sure to cancel the timer and commit now
-                        if (_index._cancellationTokenSource.IsCancellationRequested)
+                        if (_index.IsCancellationRequested)
                         {
                             //Stop the timer
                             _timer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -1223,7 +1270,7 @@ namespace Examine.LuceneEngine.Providers
         protected void QueueIndexOperation(IndexOperation op)
         {
             //don't queue if there's been a cancellation requested
-            if (!_cancellationTokenSource.IsCancellationRequested && !_indexQueue.IsAddingCompleted)
+            if (!IsCancellationRequested && !_indexQueue.IsAddingCompleted)
             {
                 _indexQueue.Add(new[] {op});
             }
@@ -1242,7 +1289,7 @@ namespace Examine.LuceneEngine.Providers
         protected void QueueIndexOperation(IEnumerable<IndexOperation> ops)
         {
             //don't queue if there's been a cancellation requested
-            if (!_cancellationTokenSource.IsCancellationRequested && !_indexQueue.IsAddingCompleted)
+            if (!IsCancellationRequested && !_indexQueue.IsAddingCompleted)
             {
                 _indexQueue.Add(ops);
             }
@@ -1254,7 +1301,6 @@ namespace Examine.LuceneEngine.Providers
             }
         }
 
-        private readonly Directory _directory;
 
         /// <summary>
         /// Returns the Lucene Directory used to store the index
@@ -1265,7 +1311,6 @@ namespace Examine.LuceneEngine.Providers
             return _writer != null ? _writer.Directory : _directory;
         }
 
-        private FileStream _logOutput;
 
         /// <summary>
         /// Used to create an index writer - this is called in GetIndexWriter (and therefore, GetIndexWriter should not be overridden)
@@ -1273,15 +1318,17 @@ namespace Examine.LuceneEngine.Providers
         /// <returns></returns>
         private IndexWriter CreateIndexWriter()
         {
+            if (this._directory is ExamineDirectory examineDirectory && examineDirectory.IsReadOnly)
+            {
+               examineDirectory.SetDirty();
+                examineDirectory.CheckDirtyWithoutWriter();
+            }
             Directory dir = GetLuceneDirectory();
-
             // Unfortunatley if the appdomain is taken down this will remain locked, so we can 
             // ensure that it's unlocked here in that case.
             try
             {
-                if (IndexWriter.IsLocked(dir) && (!(dir is ExamineDirectory) ||
-                                                  dir is ExamineDirectory examineDirectory &&
-                                                  !examineDirectory.IsReadOnly))
+                if (IndexWriter.IsLocked(dir) && !isReadonly)
                 {
                     //TODO: if readonly index, unlock the local index?
                     //unlock it!
@@ -1315,7 +1362,7 @@ namespace Examine.LuceneEngine.Providers
                     var w = new StreamWriter(_logOutput);
                     writer.SetInfoStream(w);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     //if an exception is thrown here we won't worry about it, it will mean we cannot create the log file
                 }
@@ -1349,8 +1396,8 @@ namespace Examine.LuceneEngine.Providers
                 else
                 {
                     writer = new ExamineIndexWriter(d, FieldAnalyzer, false, IndexWriter.MaxFieldLength.UNLIMITED);
-
                 }
+
                 if (examineDirectory.GetMergeScheduler() != null)
                 {
                     writer.SetMergeScheduler(examineDirectory.GetMergeScheduler());
@@ -1366,13 +1413,11 @@ namespace Examine.LuceneEngine.Providers
             {
                 writer = new ExamineIndexWriter(d, FieldAnalyzer, false, IndexWriter.MaxFieldLength.UNLIMITED);
                 // clear out current scheduler and set the error logging one
-                using (writer.MergeScheduler)
-                {
-                }
+                writer.MergeScheduler.Dispose();
+
 
                 writer.SetMergeScheduler(new ErrorLoggingConcurrentMergeScheduler(Name,
                     (s, e) => OnIndexingError(new IndexingErrorEventArgs(this, s, "-1", e))));
-
             }
 
             return writer;
@@ -1384,6 +1429,21 @@ namespace Examine.LuceneEngine.Providers
         /// <returns>The IndexWriter for the current directory. Do not dispose this result! This will be taken care of internally by Examine</returns>
         public IndexWriter GetIndexWriter()
         {
+            return GetIndexWriter(false);
+        }
+        
+        /// <summary>
+        /// Returns an index writer for the current directory
+        /// </summary>
+        /// <returns>The IndexWriter for the current directory. Do not dispose this result! This will be taken care of internally by Examine</returns>
+
+        public IndexWriter GetIndexWriter(bool skipDirty = false)
+        {
+            if (!skipDirty && this._directory is ExamineDirectory examineDirectory && examineDirectory.IsReadOnly)
+            {
+               examineDirectory.SetDirty();
+                examineDirectory.CheckDirtyWithoutWriter();
+            }
             EnsureIndex(false);
 
             if (_writer == null)
@@ -1401,7 +1461,7 @@ namespace Examine.LuceneEngine.Providers
                     Monitor.Exit(_writerLocker);
                 }
             }
-
+        
             return _writer;
         }
 
@@ -1411,6 +1471,7 @@ namespace Examine.LuceneEngine.Providers
 
         private LuceneSearcher CreateSearcher()
         {
+            
             var possibleSuffixes = new[] {"Index", "Indexer"};
             var name = Name;
             foreach (var suffix in possibleSuffixes)
@@ -1420,6 +1481,7 @@ namespace Examine.LuceneEngine.Providers
                 name = name.Substring(0, name.LastIndexOf(suffix, StringComparison.Ordinal));
             }
 
+            //todo: check with shannon why we passed writer there
             return new LuceneSearcher(name + "Searcher", GetIndexWriter(), FieldAnalyzer, FieldValueTypeCollection);
         }
 
@@ -1461,30 +1523,6 @@ namespace Examine.LuceneEngine.Providers
             return true;
         }
 
-        /// <summary>
-        /// Creates the folder if it does not exist.
-        /// </summary>
-        /// <param name="folder"></param>
-        private bool VerifyFolder(DirectoryInfo folder)
-        {
-            if (folder == null)
-                return false;
-
-            if (!System.IO.Directory.Exists(folder.FullName))
-            {
-                lock (_folderLocker)
-                {
-                    if (!System.IO.Directory.Exists(folder.FullName))
-                    {
-                        System.IO.Directory.CreateDirectory(folder.FullName);
-                        folder.Refresh();
-                    }
-                }
-            }
-
-            return true;
-        }
-
         #endregion
 
         /// <summary>
@@ -1515,107 +1553,6 @@ namespace Examine.LuceneEngine.Providers
             }
         }
 
-        #region IDisposable Members
-
-        private readonly DisposableIndex _disposer;
-        private readonly IndexCommiter _committer;
-        private bool isReadonly = false;
-
-        private class DisposableIndex : DisposableObjectSlim
-        {
-            private readonly LuceneIndex _index;
-
-            public DisposableIndex(LuceneIndex index)
-            {
-                _index = index;
-            }
-
-            /// <summary>
-            /// Handles the disposal of resources. Derived from abstract class <see cref="DisposableObject"/> which handles common required locking logic.
-            /// </summary>
-            protected override void DisposeResources()
-            {
-                if (_index.WaitForIndexQueueOnShutdown)
-                {
-                    //if there are active adds, lets way/retry (5 seconds)
-                    RetryUntilSuccessOrTimeout(() => _index._activeAddsOrDeletes == 0, TimeSpan.FromSeconds(5),
-                        TimeSpan.FromSeconds(1));
-                }
-
-                //cancel any operation currently in place
-                _index._cancellationTokenSource.Cancel();
-
-                //ensure nothing more can be added
-                _index._indexQueue.CompleteAdding();
-
-                if (_index._writer != null)
-                {
-                    if (_index.WaitForIndexQueueOnShutdown)
-                    {
-                        //process remaining items and block until complete
-                        _index.ForceProcessQueueItems(true);
-                    }
-                }
-
-                //dispose it now
-                _index._indexQueue.Dispose();
-
-                //Don't close the writer until there are definitely no more writes
-                //NOTE: we are not taking into acccount the WaitForIndexQueueOnShutdown property here because we really want to make sure
-                //we are not terminating Lucene while it is actively writing to the index.
-                RetryUntilSuccessOrTimeout(() => _index._activeWrites == 0, TimeSpan.FromMinutes(1),
-                    TimeSpan.FromSeconds(1));
-
-                //close the committer, this will ensure a final commit is made if one has been queued
-                _index._committer.Dispose();
-
-                _index._writer?.Dispose();
-
-                _index._cancellationTokenSource.Dispose();
-
-                _index._logOutput?.Close();
-            }
-
-            private static bool RetryUntilSuccessOrTimeout(Func<bool> task, TimeSpan timeout, TimeSpan pause)
-            {
-                if (pause.TotalMilliseconds < 0)
-                {
-                    throw new ArgumentException("pause must be >= 0 milliseconds");
-                }
-
-                var stopwatch = Stopwatch.StartNew();
-                do
-                {
-                    if (task())
-                    {
-                        return true;
-                    }
-
-                    Thread.Sleep((int) pause.TotalMilliseconds);
-                } while (stopwatch.Elapsed < timeout);
-
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// </summary>
-        public void Dispose()
-        {
-            //TODO: Dispose writer??
-
-            if (_searcher.IsValueCreated)
-            {
-                _searcher.Value.Dispose();
-            }
-
-            _disposer.Dispose();
-        }
-
-        #endregion
-
-
         public Task<long> GetDocumentCountAsync()
         {
             var writer = GetIndexWriter();
@@ -1628,21 +1565,102 @@ namespace Examine.LuceneEngine.Providers
             return Task.FromResult((IEnumerable<string>) writer.GetReader().GetFieldNames(IndexReader.FieldOption.ALL));
         }
 
-        public override void DeleteFromIndex(IEnumerable<string> itemIds)
+
+        private static bool RetryUntilSuccessOrTimeout(Func<bool> task, TimeSpan timeout, TimeSpan pause)
         {
-            if(_directory is ExamineDirectory examineDirectory && examineDirectory.IsReadOnly)
+            if (pause.TotalMilliseconds < 0)
             {
-                return;
+                throw new ArgumentException("pause must be >= 0 milliseconds");
             }
-            base.DeleteFromIndex(itemIds);
+
+            var stopwatch = Stopwatch.StartNew();
+            do
+            {
+                if (task())
+                {
+                    return true;
+                }
+
+                Thread.Sleep((int) pause.TotalMilliseconds);
+            } while (stopwatch.Elapsed < timeout);
+
+            return false;
         }
-        public override void IndexItems(IEnumerable<ValueSet> values)
+
+        protected virtual void Dispose(bool disposing)
         {
-            if (_directory is ExamineDirectory examineDirectory && examineDirectory.IsReadOnly)
+            if (!_disposedValue)
             {
-                return;
+                if (disposing)
+                {
+                    if (_searcher.IsValueCreated)
+                    {
+                        _searcher.Value.Dispose();
+                    }
+
+                    if (WaitForIndexQueueOnShutdown)
+                    {
+                        //if there are active adds, lets way/retry (5 seconds)
+                        RetryUntilSuccessOrTimeout(() => _activeAddsOrDeletes == 0, TimeSpan.FromSeconds(5),
+                            TimeSpan.FromSeconds(1));
+                    }
+
+                    //cancel any operation currently in place
+                    _cancellationTokenSource.Cancel();
+
+                    //ensure nothing more can be added
+                    _indexQueue.CompleteAdding();
+
+                    if (_writer != null)
+                    {
+                        if (WaitForIndexQueueOnShutdown)
+                        {
+                            // process remaining items and block until complete
+                            // NOTE: Even though the cancelation token is canceled, the 'true' value to block
+                            // will not check the cancelation token
+                            ForceProcessQueueItems(true);
+                        }
+                    }
+
+                    //dispose it now
+                    _indexQueue.Dispose();
+
+                    //Don't close the writer until there are definitely no more writes
+                    //NOTE: we are not taking into acccount the WaitForIndexQueueOnShutdown property here because we really want to make sure
+                    //we are not terminating Lucene while it is actively writing to the index.
+                    RetryUntilSuccessOrTimeout(() => _activeWrites == 0, TimeSpan.FromMinutes(1),
+                        TimeSpan.FromSeconds(1));
+
+                    //close the committer, this will ensure a final commit is made if one has been queued
+                    _committer.Dispose();
+
+                    try
+                    {
+                        _writer?.Analyzer.Dispose();
+                    }
+                    catch (Exception e)
+                    {
+                        OnIndexingError(new IndexingErrorEventArgs(this, "Error closing the index analyzer", "-1", e));
+                    }
+
+                    try
+                    {
+                        _writer?.Dispose(true);
+                    }
+                    catch (Exception e)
+                    {
+                        OnIndexingError(new IndexingErrorEventArgs(this, "Error closing the index", "-1", e));
+                    }
+
+                    _cancellationTokenSource.Dispose();
+
+                    _logOutput?.Close();
+                }
+
+                _disposedValue = true;
             }
-            base.IndexItems(values);
         }
+
+        public void Dispose() => Dispose(disposing: true);
     }
 }

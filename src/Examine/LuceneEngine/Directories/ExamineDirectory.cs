@@ -15,6 +15,12 @@ namespace Examine.LuceneEngine.Directories
             _onCommitAction?.Invoke(writer);
         }
 
+        public event EventHandler HandleOutOfSyncEvent;
+
+        public void HandleOutOfSyncDirectory()
+        {
+            HandleOutOfSyncEvent?.Invoke(this, null);
+        }
 
         /// <summary>
         /// Called on commit
@@ -27,7 +33,7 @@ namespace Examine.LuceneEngine.Directories
 
         private Func<IndexWriter, MergePolicy> _mergePolicy;
 
-        public virtual bool IsReadOnly { get; set; }
+        public bool IsReadOnly { get; set; }
         public virtual MergePolicy GetMergePolicy(IndexWriter writer)
         {
             return _mergePolicy?.Invoke(writer);
@@ -58,6 +64,7 @@ namespace Examine.LuceneEngine.Directories
         public abstract string[] CheckDirtyWithoutWriter();
 
         public abstract void SetDirty();
+        public object RebuildLock = new object();
 
     }
 }
