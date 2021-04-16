@@ -27,7 +27,6 @@ namespace Examine.AzureDirectory
 
         public override Lucene.Net.Store.Directory CreateDirectory(DirectoryInfo luceneIndexFolder)
         {
-       {
             var indexFolder = luceneIndexFolder;
             var tempFolder = GetLocalStorageDirectory(indexFolder);
             var indexName = GetIndexPathName(indexFolder);
