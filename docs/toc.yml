@@ -1,7 +1,7 @@
-- name: Articles
-  href: articles/
-- name: Api Documentation
-  href: api/
-  homepage: api/index.md
+- name: V3.0.x Articles
+  href: v3.0.x/articles/
+- name: V3.0.x Api Documentation
+  href: v3.0.x/api/
+  homepage: v3.0.x/api/index.md
 - name: Source Code
   href: https://github.com/Shazwazza/Examine

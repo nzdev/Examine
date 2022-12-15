@@ -1,4 +1,4 @@
-- name: V1 / V2 Articles
+- name: V1 Articles
   href: quickstart.md
 - name: Configuration
   href: configuration.md

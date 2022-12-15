@@ -15,7 +15,7 @@
 		      "src": "../"
         }
       ],
-      "dest": "api",
+      "dest": "v3.0.x/api",
       "disableGitFeatures": false,
       "disableDefaultFilter": false
     }
@@ -24,19 +24,44 @@
     "content": [
       {
         "files": [
-          "api/**.yml",
-          "api/index.md"
+          "toc.yml",
+          "*.md"
         ]
       },
       {
+        "version": "v3.0.x",
         "files": [
-          "articles/**.md",
-          "articles/**/toc.yml",
+          "**.md",
           "toc.yml",
-          "*.md",
-          "docs-v1-v2/**.md",
-          "docs-v1-v2/**/toc.yml"
-        ]
+          "articles/*.md",
+          "articles/toc.yml",
+          "api/*.md",
+          "api/toc.yml"
+        ],
+        "src": "v3.0.x",
+        "dest": "v3.0.x"
+      },
+      {
+        "version": "v2.0.x",
+        "files": [
+          "**.md",
+          "toc.yml",
+          "articles/*.md",
+          "articles/toc.yml"
+        ],
+        "src": "v2.0.x",
+        "dest": "v2.0.x"
+      },
+      {
+        "version": "v1.0.x",
+        "files": [
+          "**.md",
+          "toc.yml",
+          "articles/*.md",
+          "articles/toc.yml"
+        ],
+        "src": "v1.0.x",
+        "dest": "v1.0.x"
       }
     ],
     "resource": [
@@ -48,13 +73,16 @@
     ],
     "overwrite": [
       {
-        "files": [
+        "version": "v3.0.x",
+         "files": [
           "apidoc/**.md"
         ],
         "exclude": [
           "obj/**",
           "_site/**"
-        ]
+        ],
+        "src": "v3.0.x",
+        "dest": "v3.0.x"
       }
     ],
     "dest": "_site",
