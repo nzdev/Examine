@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Examine.Lucene.Providers;
 using Examine.Lucene.Search;
 using Examine.Search;
+using Examine.Suggest;
 using Examine.Web.Demo.Controllers;
 using Examine.Web.Demo.Data.Models;
 using Lucene.Net.Search;
@@ -45,9 +46,20 @@ namespace Examine.Web.Demo.Data
             if (index is IIndexStats indexStats)
             {
                 var fields = indexStats.GetFieldNames();
+                var searchers = new List<string>();
+                var suggesters = new List<string>();
+                if (!string.IsNullOrWhiteSpace(index.Searcher?.Name))
+                {
+                    searchers.Add(index.Searcher?.Name);
+                }
+                if (!string.IsNullOrWhiteSpace(index.Suggester?.Name))
+                {
+                    suggesters.Add(index.Suggester?.Name);
+                }
+               
                 return new IndexInformation(
                     indexStats.GetDocumentCount(),
-                    fields.ToList());
+                    fields.ToList(), searchers, suggesters);
             }
             else
             {
@@ -119,6 +131,15 @@ namespace Examine.Web.Demo.Data
             return finalCriteria.ExecuteWithLucene(queryOptions);
         }
 
+
+        public ISuggestionResults Suggest(string indexName, string query)
+        {
+            var index = GetIndex(indexName);
+
+            var suggester = index.Suggester;
+            var criteria = suggester.CreateSuggestionQuery();
+            return criteria.Execute(query, new SuggestionOptions(5, ExamineLuceneSuggesterNames.AnalyzingInfixSuggester));
+        }
     }
 
 }

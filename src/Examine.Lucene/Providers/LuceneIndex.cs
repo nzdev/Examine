@@ -21,6 +21,8 @@ using Examine.Lucene.Directories;
 using Lucene.Net.Facet.Taxonomy;
 using Lucene.Net.Facet.Taxonomy.Directory;
 using static Lucene.Net.Replicator.IndexAndTaxonomyRevision;
+using Examine.Suggest;
+using Examine.Lucene.Suggest;
 
 namespace Examine.Lucene.Providers
 {
@@ -105,6 +107,11 @@ namespace Examine.Lucene.Providers
             _cancellationToken = _cancellationTokenSource.Token;
 
             DefaultAnalyzer = _options.Analyzer ?? new StandardAnalyzer(LuceneInfo.CurrentVersion);
+
+            //initialize the field types
+            _suggesterDefinitionCollection = _options.SuggesterDefinitions;
+
+            _suggester = new Lazy<LuceneSuggester>(CreateSuggesters);
         }
 
         /// <summary>
@@ -151,6 +158,7 @@ namespace Examine.Lucene.Providers
         private readonly LuceneIndexOptions _options;
         private PerFieldAnalyzerWrapper _fieldAnalyzer;
         private ControlledRealTimeReopenThread<IndexSearcher> _nrtReopenThread;
+        private ControlledRealTimeReopenThread<DirectoryReader> _nrtSuggesterReopenThread;
         private readonly ILogger<LuceneIndex> _logger;
         private readonly Lazy<Directory> _directory;
         private FileStream _logOutput;
@@ -184,6 +192,14 @@ namespace Examine.Lucene.Providers
         /// Gets a searcher for the index
         /// </summary>
         public override ISearcher Searcher => _searcher.Value;
+
+
+
+        private readonly Lazy<LuceneSuggester> _suggester;
+        /// <summary>
+        /// Gets a suggester for the index
+        /// </summary>
+        public override ISuggester Suggester => _suggester.Value;
 
         /// <summary>
         /// Gets a Taxonomy searcher for the index
@@ -222,6 +238,13 @@ namespace Examine.Lucene.Providers
         /// Returns the <see cref="FieldValueTypeCollection"/> configured for this index
         /// </summary>
         public FieldValueTypeCollection FieldValueTypeCollection => _fieldValueTypeCollection.Value;
+
+        private readonly SuggesterDefinitionCollection _suggesterDefinitionCollection;
+
+        /// <summary>
+        /// Returns the <see cref="SuggesterDefinitionCollection"/> configured for this index
+        /// </summary>
+        public SuggesterDefinitionCollection SuggesterDefinitionCollection => _suggesterDefinitionCollection;
 
         /// <summary>
         /// The default analyzer to use when indexing content, by default, this is set to StandardAnalyzer
@@ -1264,6 +1287,41 @@ namespace Examine.Lucene.Providers
 
         #region Private
 
+        private LuceneSuggester CreateSuggesters()
+        {
+            var possibleSuffixes = new[] { "Index", "Indexer" };
+            var name = Name;
+            foreach (var suffix in possibleSuffixes)
+            {
+                //trim the "Indexer" / "Index" suffix if it exists
+                if (!name.EndsWith(suffix))
+                    continue;
+                name = name.Substring(0, name.LastIndexOf(suffix, StringComparison.Ordinal));
+            }
+
+            TrackingIndexWriter writer = IndexWriter;
+            var suggesterManager = new ReaderManager(writer.IndexWriter, true);
+            suggesterManager.AddListener(this);
+
+            _nrtSuggesterReopenThread = new ControlledRealTimeReopenThread<DirectoryReader>(writer, suggesterManager, 5.0, 1.0)
+            {
+                Name = $"{Name} Suggester NRT Reopen Thread",
+                IsBackground = true
+            };
+
+            _nrtSuggesterReopenThread.Start();
+
+            // wait for most recent changes when first creating the suggester
+            WaitForChanges();
+
+            var suggester = new LuceneSuggester(name + "Suggester", suggesterManager, FieldValueTypeCollection, SuggesterDefinitionCollection);
+
+            IndexCommitted += LuceneIndex_IndexCommitted_RefreshSuggesters;
+            return suggester;
+        }
+
+        private void LuceneIndex_IndexCommitted_RefreshSuggesters(object sender, EventArgs e) => _suggester.Value.RebuildSuggesters();
+
         private LuceneSearcher CreateSearcher()
         {
             var possibleSuffixes = new[] { "Index", "Indexer" };
@@ -1532,6 +1590,11 @@ namespace Examine.Lucene.Providers
                         _nrtReopenThread.Interrupt();
                         _nrtReopenThread.Dispose();
                     }
+                    if (_nrtSuggesterReopenThread != null)
+                    {
+                        _nrtSuggesterReopenThread.Interrupt();
+                        _nrtSuggesterReopenThread.Dispose();
+                    }
 
                     if (_taxonomyNrtReopenThread != null)
                     {
@@ -1542,6 +1605,12 @@ namespace Examine.Lucene.Providers
                     if (_searcher != null && _searcher.IsValueCreated)
                     {
                         _searcher.Value.Dispose();
+                    }
+
+                    if (_suggester.IsValueCreated)
+                    {
+                        IndexCommitted -= LuceneIndex_IndexCommitted_RefreshSuggesters;
+                        _suggester.Value.Dispose();
                     }
 
                     //cancel any operation currently in place

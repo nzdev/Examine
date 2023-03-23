@@ -7,6 +7,8 @@ using Examine.Lucene.Analyzers;
 using Examine.Lucene.Indexing;
 using Lucene.Net.Analysis;
 using Lucene.Net.Documents;
+using Lucene.Net.Search.Suggest.Analyzing;
+using Lucene.Net.Search.Suggest.Jaspell;
 using Microsoft.Extensions.Logging;
 
 namespace Examine.Lucene

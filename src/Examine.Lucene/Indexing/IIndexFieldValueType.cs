@@ -1,5 +1,4 @@
 using Lucene.Net.Analysis;
-using Lucene.Net.Analysis.Miscellaneous;
 using Lucene.Net.Documents;
 using Lucene.Net.Search;
 
@@ -20,9 +19,14 @@ namespace Examine.Lucene.Indexing
         bool Store { get; }
 
         /// <summary>
-        /// Returns the analyzer for this field type, or null to use the default
+        /// Returns the index time analyzer for this field type, or null to use the default
         /// </summary>
         Analyzer Analyzer { get; }
+
+        /// <summary>
+        /// Returns the search time analyzer for this field type, or null to use the default
+        /// </summary>
+        Analyzer SearchAnalyzer { get; }
 
         void AddValue(Document doc, object value);
         

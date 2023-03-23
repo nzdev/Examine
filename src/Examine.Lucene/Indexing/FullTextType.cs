@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Examine.Lucene.Analyzers;
 using Examine.Lucene.Providers;
+using Examine.Lucene.Suggest;
+using Examine.Suggest;
 using Examine.Lucene.Search;
 using Examine.Search;
 using Lucene.Net.Analysis;
@@ -13,7 +16,13 @@ using Lucene.Net.Facet;
 using Lucene.Net.Facet.SortedSet;
 using Lucene.Net.Index;
 using Lucene.Net.Search;
+using Lucene.Net.Search.Spell;
+using Lucene.Net.Search.Suggest;
+using Lucene.Net.Search.Suggest.Analyzing;
+using Lucene.Net.Util;
 using Microsoft.Extensions.Logging;
+using static Lucene.Net.Search.Suggest.Lookup;
+using LuceneDirectory = Lucene.Net.Store.Directory;
 
 namespace Examine.Lucene.Indexing
 {
@@ -28,6 +37,8 @@ namespace Examine.Lucene.Indexing
     public class FullTextType : IndexFieldValueTypeBase, IIndexFacetValueType
     {
         private readonly bool _sortable;
+        private readonly Analyzer _searchAnalyzer;
+        private readonly Func<IIndexReaderReference, SuggestionOptions, string, LuceneSuggestionResults> _lookup;
         private readonly Analyzer _analyzer;
         private readonly bool _isFacetable;
         private readonly bool _taxonomyIndex;
@@ -57,12 +68,15 @@ namespace Examine.Lucene.Indexing
         /// Defaults to <see cref="CultureInvariantStandardAnalyzer"/>
         /// </param>
         /// <param name="sortable"></param>
-        public FullTextType(string fieldName, ILoggerFactory logger, Analyzer analyzer = null, bool sortable = false)
+        public FullTextType(string fieldName, ILoggerFactory logger, Analyzer analyzer = null, bool sortable = false, Analyzer searchAnalyzer = null, Func<IIndexReaderReference, SuggestionOptions, string, LuceneSuggestionResults> lookup = null)
             : base(fieldName, logger, true)
         {
             _sortable = sortable;
             _analyzer = analyzer ?? new CultureInvariantStandardAnalyzer();
             _isFacetable = false;
+            _searchAnalyzer = searchAnalyzer ?? _analyzer;
+            _lookup = lookup;
+
         }
 
         /// <summary>
@@ -71,6 +85,8 @@ namespace Examine.Lucene.Indexing
         public override string SortableFieldName => _sortable ? ExamineFieldNames.SortedFieldNamePrefix + FieldName : null;
 
         public override Analyzer Analyzer => _analyzer;
+
+        public override Analyzer SearchAnalyzer => _searchAnalyzer;
 
         /// <inheritdoc/>
         public bool IsTaxonomyFaceted => _taxonomyIndex;

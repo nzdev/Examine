@@ -26,6 +26,8 @@ namespace Examine.Lucene.Indexing
 
         public virtual Analyzer Analyzer => null;
 
+        public virtual Analyzer SearchAnalyzer => null;
+
         public ILogger Logger { get; }
 
         public virtual void AddValue(Document doc, object value) => AddSingleValueInternal(doc, value);

@@ -1,4 +1,7 @@
 using Lucene.Net.Facet;
+using Examine.Lucene.Suggest;
+using Lucene.Net.Analysis.Standard;
+using Lucene.Net.Util;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Examine.Web.Demo
@@ -41,6 +44,7 @@ namespace Examine.Web.Demo
                 facetsConfig: new FacetsConfig());
 
             services.ConfigureOptions<ConfigureIndexOptions>();
+
 
             return services;
         }
