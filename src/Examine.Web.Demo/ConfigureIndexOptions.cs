@@ -40,6 +40,7 @@ namespace Examine.Web.Demo
                     // to a Value Type called "phone" defined above.
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("phone", "phone"));
 
+                    options.FieldDefinitions.AddOrUpdate(new FieldDefinition("FullName", FieldDefinitionTypes.FacetTaxonomyFullText));
                     options.SuggesterDefinitions.AddOrUpdate(new AnalyzingInfixSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingInfixSuggester, new string[] { "fullName" }, new RAMSuggesterDirectoryFactory()));
                     options.SuggesterDefinitions.AddOrUpdate(new AnalyzingSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingSuggester, new string[] { "fullName" }));
                     options.SuggesterDefinitions.AddOrUpdate(new DirectSpellCheckerDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker, new string[] { "fullName" }));
@@ -54,6 +55,7 @@ namespace Examine.Web.Demo
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("AddressState", FieldDefinitionTypes.FacetTaxonomyFullText));
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("AddressStateCity", FieldDefinitionTypes.FacetTaxonomyFullText));
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("Tags", FieldDefinitionTypes.FacetTaxonomyFullText));
+                    options.FieldDefinitions.AddOrUpdate(new FieldDefinition("FullName", FieldDefinitionTypes.FacetTaxonomyFullText));
                     options.SuggesterDefinitions.AddOrUpdate(new AnalyzingInfixSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingInfixSuggester, new string[] { "FullName" }, new RAMSuggesterDirectoryFactory()));
                     options.SuggesterDefinitions.AddOrUpdate(new AnalyzingSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingSuggester, new string[] { "FullName" }));
                     options.SuggesterDefinitions.AddOrUpdate(new DirectSpellCheckerDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker, new string[] { "FullName" }));
@@ -69,6 +71,7 @@ namespace Examine.Web.Demo
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("AddressState", FieldDefinitionTypes.FacetFullText));
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("AddressStateCity", FieldDefinitionTypes.FacetFullText));
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("Tags", FieldDefinitionTypes.FacetFullText));
+                    options.FieldDefinitions.AddOrUpdate(new FieldDefinition("FullName", FieldDefinitionTypes.FacetFullText));
                     options.SuggesterDefinitions.AddOrUpdate(new AnalyzingInfixSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingInfixSuggester, new string[] { "FullName" }, new RAMSuggesterDirectoryFactory()));
                     options.SuggesterDefinitions.AddOrUpdate(new AnalyzingSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingSuggester, new string[] { "FullName" }));
                     options.SuggesterDefinitions.AddOrUpdate(new DirectSpellCheckerDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker, new string[] { "FullName" }));
