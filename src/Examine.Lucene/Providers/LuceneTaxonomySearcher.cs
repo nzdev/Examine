@@ -11,6 +11,7 @@ namespace Examine.Lucene.Providers
     {
         private readonly SearcherTaxonomyManager _searcherManager;
         private readonly FieldValueTypeCollection _fieldValueTypeCollection;
+        private readonly SimilarityDefinitionCollection _similarityDefinitionCollection;
         private bool _disposedValue;
 
         /// <summary>
@@ -20,19 +21,36 @@ namespace Examine.Lucene.Providers
         /// <param name="writer"></param>
         /// <param name="analyzer"></param>
         /// <param name="fieldValueTypeCollection"></param>
+        [Obsolete]
         public LuceneTaxonomySearcher(string name, SearcherTaxonomyManager searcherManager, Analyzer analyzer, FieldValueTypeCollection fieldValueTypeCollection, FacetsConfig facetsConfig)
             : base(name, analyzer, facetsConfig)
         {
             _searcherManager = searcherManager;
             _fieldValueTypeCollection = fieldValueTypeCollection;
+            _similarityDefinitionCollection = null;
+        }
+
+        /// <summary>
+        /// Constructor allowing for creating a NRT instance based on a given writer
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="writer"></param>
+        /// <param name="analyzer"></param>
+        /// <param name="fieldValueTypeCollection"></param>
+        public LuceneTaxonomySearcher(string name, SearcherTaxonomyManager searcherManager, Analyzer analyzer, FieldValueTypeCollection fieldValueTypeCollection, FacetsConfig facetsConfig, SimilarityDefinitionCollection similarityDefinitionCollection)
+            : base(name, analyzer, facetsConfig)
+        {
+            _searcherManager = searcherManager;
+            _fieldValueTypeCollection = fieldValueTypeCollection;
+            _similarityDefinitionCollection = similarityDefinitionCollection;
         }
 
         public override ISearchContext GetSearchContext()
-            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection);
+            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection, _similarityDefinitionCollection);
 
 
         public virtual ITaxonomySearchContext GetTaxonomySearchContext()
-            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection);
+            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection, _similarityDefinitionCollection);
 
         protected virtual void Dispose(bool disposing)
         {

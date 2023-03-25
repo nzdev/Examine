@@ -9,6 +9,7 @@ using Moq;
 using Examine.Lucene.Directories;
 using System.Collections.Generic;
 using Lucene.Net.Facet;
+using Examine.Lucene.Search;
 
 namespace Examine.Test
 {
@@ -21,7 +22,7 @@ namespace Examine.Test
             loggerFactory.CreateLogger(typeof(ExamineBaseTest)).LogDebug("Initializing test");
         }
 
-        public TestIndex GetTestIndex(Directory d, Analyzer analyzer, FieldDefinitionCollection fieldDefinitions = null, IndexDeletionPolicy indexDeletionPolicy = null, IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null, FacetsConfig? facetsConfig = null,SuggesterDefinitionCollection suggesterDefinitions = null)
+        public TestIndex GetTestIndex(Directory d, Analyzer analyzer, FieldDefinitionCollection fieldDefinitions = null, IndexDeletionPolicy indexDeletionPolicy = null, IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null, FacetsConfig? facetsConfig = null, SuggesterDefinitionCollection suggesterDefinitions = null, SimilarityDefinitionCollection similarityDefinitions = null)
         {
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
             return new TestIndex(
@@ -34,7 +35,8 @@ namespace Examine.Test
                     IndexDeletionPolicy = indexDeletionPolicy,
                     IndexValueTypesFactory = indexValueTypesFactory,
                     SuggesterDefinitions = suggesterDefinitions,
-                    FacetsConfig = facetsConfig ?? new FacetsConfig()
+                    FacetsConfig = facetsConfig ?? new FacetsConfig(),
+                    SimilarityDefinitions = similarityDefinitions ?? new SimilarityDefinitionCollection().AddExamineLuceneSimilarities()
                 }));
         }
 

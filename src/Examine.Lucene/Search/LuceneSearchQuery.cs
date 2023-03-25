@@ -7,6 +7,7 @@ using Examine.Search;
 using Lucene.Net.Analysis;
 using Lucene.Net.Facet;
 using Lucene.Net.Search;
+using Lucene.Net.Search.Similarities;
 
 namespace Examine.Lucene.Search
 {
@@ -20,6 +21,7 @@ namespace Examine.Lucene.Search
         private readonly FacetsConfig _facetsConfig;
         private ISet<string> _fieldsToLoad = null;
         private readonly IList<IFacetField> _facetFields = new List<IFacetField>();
+        private string _similarityName;
 
         public LuceneSearchQuery(
             ISearchContext searchContext,
@@ -28,6 +30,7 @@ namespace Examine.Lucene.Search
         {   
             _searchContext = searchContext;
             _facetsConfig = facetsConfig;
+            _similarityName = searchOptions.SimilarityName;
         }
 
         private static CustomMultiFieldQueryParser CreateQueryParser(ISearchContext searchContext, Analyzer analyzer, LuceneSearchOptions searchOptions)
@@ -231,7 +234,7 @@ namespace Examine.Lucene.Search
                 }
             }
 
-            var executor = new LuceneSearchExecutor(options, query, SortFields, _searchContext, _fieldsToLoad, _facetFields,_facetsConfig);
+            var executor = new LuceneSearchExecutor(options, query, SortFields, _searchContext, _fieldsToLoad, _facetFields,_facetsConfig, _similarityName);
 
             var pagesResults = executor.Execute();
 

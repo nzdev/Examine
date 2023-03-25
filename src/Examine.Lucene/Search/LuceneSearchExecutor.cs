@@ -10,6 +10,7 @@ using Lucene.Net.Facet.Taxonomy;
 using Lucene.Net.Index;
 using Lucene.Net.Search;
 using LuceneFacetResult = Lucene.Net.Facet.FacetResult;
+using Lucene.Net.Search.Similarities;
 
 namespace Examine.Lucene.Search
 {
@@ -27,15 +28,17 @@ namespace Examine.Lucene.Search
         private readonly ISet<string> _fieldsToLoad;
         private readonly IEnumerable<IFacetField> _facetFields;
         private readonly FacetsConfig _facetsConfig;
+        private readonly string _similarityName;
         private int? _maxDoc;
 
         internal LuceneSearchExecutor(QueryOptions options, Query query, IEnumerable<SortField> sortField, ISearchContext searchContext,
-            ISet<string> fieldsToLoad, IEnumerable<IFacetField> facetFields, FacetsConfig facetsConfig)
+            ISet<string> fieldsToLoad, IEnumerable<IFacetField> facetFields, FacetsConfig facetsConfig, string similarityName)
         {
             _options = options ?? QueryOptions.Default;
             _luceneQueryOptions = _options as LuceneQueryOptions;
             _luceneQuery = query ?? throw new ArgumentNullException(nameof(query));
             _fieldsToLoad = fieldsToLoad;
+            _similarityName = similarityName;
             _sortField = sortField ?? throw new ArgumentNullException(nameof(sortField));
             _searchContext = searchContext ?? throw new ArgumentNullException(nameof(searchContext));
             _facetFields = facetFields;
@@ -99,6 +102,21 @@ namespace Examine.Lucene.Search
 
             using (ISearcherReference searcher = _searchContext.GetSearcher())
             {
+                var similarityDefinition = _searchContext.GetSimilarity(_similarityName);
+
+                if (similarityDefinition != null && similarityDefinition is LuceneSimilarityDefinitionBase luceneSimilarityDefinition)
+                {
+                    var similarity = luceneSimilarityDefinition?.GetSimilarity();
+                    if (similarity != null)
+                    {
+                        searcher.IndexSearcher.Similarity = similarity;
+                    }
+                }
+                else
+                {
+                    searcher.IndexSearcher.Similarity = LuceneSearchOptionsSimilarities.ExamineDefault;
+                }
+
                 if (sortFields.Length > 0)
                 {
                     sort = new Sort(sortFields);

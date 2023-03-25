@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Linq;
 using Examine.Lucene.Indexing;
 using Lucene.Net.Facet.Taxonomy;
 using Lucene.Net.Index;
+using Lucene.Net.Search;
 
 namespace Examine.Lucene.Search
 {
@@ -10,12 +11,21 @@ namespace Examine.Lucene.Search
     {
         private readonly SearcherTaxonomyManager _searcherManager;
         private readonly FieldValueTypeCollection _fieldValueTypeCollection;
+        private readonly SimilarityDefinitionCollection _similarityDefinitionCollection;
         private string[] _searchableFields;
 
         public TaxonomySearchContext(SearcherTaxonomyManager searcherManager, FieldValueTypeCollection fieldValueTypeCollection)
         {
             _searcherManager = searcherManager;
             _fieldValueTypeCollection = fieldValueTypeCollection ?? throw new ArgumentNullException(nameof(fieldValueTypeCollection));
+            _similarityDefinitionCollection = null;
+        }
+
+        public TaxonomySearchContext(SearcherTaxonomyManager searcherManager, FieldValueTypeCollection fieldValueTypeCollection, SimilarityDefinitionCollection similarityDefinitionCollection)
+        {
+            _searcherManager = searcherManager;
+            _fieldValueTypeCollection = fieldValueTypeCollection ?? throw new ArgumentNullException(nameof(fieldValueTypeCollection));
+            _similarityDefinitionCollection = similarityDefinitionCollection;
         }
 
         public ISearcherReference GetSearcher() => new TaxonomySearcherReference(_searcherManager);
@@ -60,5 +70,20 @@ namespace Examine.Lucene.Search
         }
 
         public ITaxonomySearcherReference GetTaxonomyAndSearcher() => new TaxonomySearcherReference(_searcherManager);
+
+        public SimilarityDefinition GetSimilarity(string similarityName)
+        {
+            //Get the value type for the field, or use the default if not defined
+            if (_similarityDefinitionCollection == null || string.IsNullOrEmpty(similarityName))
+            {
+                return null;
+            }
+
+            if (_similarityDefinitionCollection.TryGetValue(similarityName, out var similarity))
+            {
+                return similarity;
+            };
+            return null;
+        }
     }
 }

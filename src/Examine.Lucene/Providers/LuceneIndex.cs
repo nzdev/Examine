@@ -103,6 +103,8 @@ namespace Examine.Lucene.Providers
                 _taxonomySearcher = new Lazy<LuceneTaxonomySearcher>(() => throw new NotSupportedException("TaxonomySearcher not supported when not using taxonomy index."));
                 _searcher = new Lazy<BaseLuceneSearcher>(CreateSearcher);
             }
+            _similarityDefinitionCollection = new Lazy<SimilarityDefinitionCollection>(() => _options.SimilarityDefinitions);
+
             _cancellationTokenSource = new CancellationTokenSource();
             _cancellationToken = _cancellationTokenSource.Token;
 
@@ -232,6 +234,8 @@ namespace Examine.Lucene.Providers
         private readonly Lazy<LuceneTaxonomySearcher> _taxonomySearcher;
         private readonly Lazy<Directory> _taxonomyDirectory;
 
+        private readonly Lazy<SimilarityDefinitionCollection> _similarityDefinitionCollection;
+
         #region Properties
 
         /// <summary>
@@ -245,6 +249,11 @@ namespace Examine.Lucene.Providers
         /// Returns the <see cref="SuggesterDefinitionCollection"/> configured for this index
         /// </summary>
         public SuggesterDefinitionCollection SuggesterDefinitionCollection => _suggesterDefinitionCollection;
+
+        /// <summary>
+        /// Returns the <see cref="SimilarityDefinitionCollection"/> configured for this index
+        /// </summary>
+        public SimilarityDefinitionCollection SimilarityDefinitionCollection => _similarityDefinitionCollection.Value;
 
         /// <summary>
         /// The default analyzer to use when indexing content, by default, this is set to StandardAnalyzer
@@ -1379,7 +1388,7 @@ namespace Examine.Lucene.Providers
             // wait for most recent changes when first creating the searcher
             WaitForChanges();
 
-            return new LuceneTaxonomySearcher(name + "Searcher", searcherManager, FieldAnalyzer, FieldValueTypeCollection, _options.FacetsConfig);
+            return new LuceneTaxonomySearcher(name + "Searcher", searcherManager, FieldAnalyzer, FieldValueTypeCollection, _options.FacetsConfig, SimilarityDefinitionCollection);
         }
 
         /// <summary>

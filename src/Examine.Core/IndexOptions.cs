@@ -5,10 +5,13 @@ namespace Examine
         public IndexOptions()
         {
             FieldDefinitions = new FieldDefinitionCollection();
-            SuggesterDefinitions = new SuggesterDefinitionCollection();
+            SimilarityDefinitions = new SimilarityDefinitionCollection();
         }
 
         public FieldDefinitionCollection FieldDefinitions { get; set; }
+
+        public SimilarityDefinitionCollection SimilarityDefinitions { get; set; }
+
         public IValueSetValidator Validator { get; set; }
 
         public SuggesterDefinitionCollection SuggesterDefinitions { get; set; }

@@ -28,8 +28,9 @@ namespace Examine
             Analyzer analyzer = null,
             IValueSetValidator validator = null,
             IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null,
-            FacetsConfig facetsConfig = null)
-            => serviceCollection.AddExamineLuceneIndex<LuceneIndex>(name, fieldDefinitions, analyzer, validator, indexValueTypesFactory, facetsConfig);
+            FacetsConfig facetsConfig = null,
+            SimilarityDefinitionCollection similarityDefinitions = null)
+            => serviceCollection.AddExamineLuceneIndex<LuceneIndex>(name, fieldDefinitions, analyzer, validator, indexValueTypesFactory, facetsConfig, similarityDefinitions);
 
         /// <summary>
         /// Registers a file system based Lucene Examine index
@@ -41,9 +42,10 @@ namespace Examine
             Analyzer analyzer = null,
             IValueSetValidator validator = null,
             IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null,
-            FacetsConfig facetsConfig = null)
+            FacetsConfig facetsConfig = null,
+            SimilarityDefinitionCollection similarityDefinitions = null)
             where TIndex : LuceneIndex
-            => serviceCollection.AddExamineLuceneIndex<TIndex, FileSystemDirectoryFactory>(name, fieldDefinitions, analyzer, validator, indexValueTypesFactory, facetsConfig);
+            => serviceCollection.AddExamineLuceneIndex<TIndex, FileSystemDirectoryFactory>(name, fieldDefinitions, analyzer, validator, indexValueTypesFactory, facetsConfig, similarityDefinitions);
 
         /// <summary>
         /// Registers an Examine index
@@ -55,7 +57,8 @@ namespace Examine
             Analyzer analyzer = null,
             IValueSetValidator validator = null,
             IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null,
-            FacetsConfig facetsConfig = null)
+            FacetsConfig facetsConfig = null,
+            SimilarityDefinitionCollection similarityDefinitions = null)
             where TIndex : LuceneIndex
             where TDirectoryFactory : class, IDirectoryFactory
         {
@@ -72,6 +75,7 @@ namespace Examine
                         options.FieldDefinitions = fieldDefinitions ?? options.FieldDefinitions;
                         options.DirectoryFactory = services.GetRequiredService<TDirectoryFactory>();
                         options.FacetsConfig = facetsConfig ?? new FacetsConfig();
+                        options.SimilarityDefinitions = similarityDefinitions ?? new SimilarityDefinitionCollection().AddExamineLuceneSimilarities();
                     }));
 
             return serviceCollection.AddSingleton<IIndex>(services =>
