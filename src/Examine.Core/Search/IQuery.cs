@@ -134,5 +134,13 @@ namespace Examine.Search
         /// <param name="maxInclusive"></param>
         /// <returns></returns>
         IBooleanOperation RangeQuery<T>(string[] fields, T? min, T? max, bool minInclusive = true, bool maxInclusive = true) where T : struct;
+
+        /// <summary>
+        /// Drill Down over facet categories
+        /// </summary>
+        /// <param name="drillDownOptions">Drill Down Query options. Set the facets to drill</param>
+        /// <param name="baseQuery">Base Query to drill down over. If null, pure browsing query</param>
+        /// <returns></returns>
+        IBooleanOperation DrillDownQuery(IDrillDownQueryOptions drillDownOptions, Func<IQuery, IBooleanOperation> baseQuery = null);
     }
 }
