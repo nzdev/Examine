@@ -43,13 +43,13 @@ namespace Examine.Web.Demo
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("phone", "phone"));
 
                     options.FieldDefinitions.AddOrUpdate(new FieldDefinition("FullName", FieldDefinitionTypes.FullText));
-                    options.SuggesterDefinitions.AddOrUpdate(new AnalyzingInfixSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingInfixSuggester, new string[] { "fullName" }, new RAMSuggesterDirectoryFactory()));
-                    options.SuggesterDefinitions.AddOrUpdate(new AnalyzingSuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingSuggester, new string[] { "fullName" }));
-                    options.SuggesterDefinitions.AddOrUpdate(new DirectSpellCheckerDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker, new string[] { "fullName" }));
-                    options.SuggesterDefinitions.AddOrUpdate(new LevensteinDistanceSuggesterDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker_LevensteinDistance, new string[] { "fullName" }));
-                    options.SuggesterDefinitions.AddOrUpdate(new JaroWinklerDistanceDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker_JaroWinklerDistance, new string[] { "fullName" }));
-                    options.SuggesterDefinitions.AddOrUpdate(new NGramDistanceSuggesterDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker_NGramDistance,new string[] { "fullName" }));
-                    options.SuggesterDefinitions.AddOrUpdate(new FuzzySuggesterDefinition(ExamineLuceneSuggesterNames.FuzzySuggester, new string[] { "fullName" }));
+                    options.SuggesterDefinitions.AddAnalyzingInfixSuggester(ExamineLuceneSuggesterNames.AnalyzingInfixSuggester, new string[] { "fullName" });
+                    options.SuggesterDefinitions.AddAnalyzingSuggester(ExamineLuceneSuggesterNames.AnalyzingSuggester, new string[] { "fullName" });
+                    options.SuggesterDefinitions.AddFuzzySuggester(ExamineLuceneSuggesterNames.FuzzySuggester, new string[] { "fullName" });
+                    options.SuggesterDefinitions.AddSpellCheckerSuggester(ExamineLuceneSuggesterNames.DirectSpellChecker, new string[] { "fullName" });
+                    options.SuggesterDefinitions.AddLevensteinDistanceSpellCheckerSuggester(ExamineLuceneSuggesterNames.DirectSpellChecker_LevensteinDistance, new string[] { "fullName" });
+                    options.SuggesterDefinitions.AddJaroWinklerDistanceSpellCheckerSuggester(ExamineLuceneSuggesterNames.DirectSpellChecker_JaroWinklerDistance, new string[] { "fullName" });
+                    options.SuggesterDefinitions.AddNGramDistanceSpellCheckerSuggester(ExamineLuceneSuggesterNames.DirectSpellChecker_NGramDistance,new string[] { "fullName" });
                     break;
                 case "TaxonomyFacetIndex":
                     options.UseTaxonomyIndex = true;
