@@ -282,6 +282,24 @@ To explore other configuration settings see the links below:
 - [FacetsConfig API docs](https://lucenenet.apache.org/docs/4.8.0-beta00016/api/facet/Lucene.Net.Facet.FacetsConfig.html#methods)
 - [Facets with lucene](https://norconex.com/facets-with-lucene/). See how the config is used in the code examples.
 
+
+## Registering Suggesters
+
+On the index to register the Suggesters, create a SuggesterDefinitionCollection and set it on IndexOptions.SuggesterDefinitions
+
+Examples for suggesting or spellchecking based on the "fullName" index field.
+
+```cs
+ var suggesters = new SuggesterDefinitionCollection();
+            suggesters.AddOrUpdate(new SuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingInfixSuggester, ExamineLuceneSuggesterNames.AnalyzingInfixSuggester, new string[] { "fullName" }));
+            suggesters.AddOrUpdate(new SuggesterDefinition(ExamineLuceneSuggesterNames.AnalyzingSuggester, ExamineLuceneSuggesterNames.AnalyzingSuggester, new string[] { "fullName" }));
+            suggesters.AddOrUpdate(new SuggesterDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker, ExamineLuceneSuggesterNames.DirectSpellChecker, new string[] { "fullName" }));
+            suggesters.AddOrUpdate(new SuggesterDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker_LevensteinDistance, ExamineLuceneSuggesterNames.DirectSpellChecker_LevensteinDistance, new string[] { "fullName" }));
+            suggesters.AddOrUpdate(new SuggesterDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker_JaroWinklerDistance, ExamineLuceneSuggesterNames.DirectSpellChecker_JaroWinklerDistance, new string[] { "fullName" }));
+            suggesters.AddOrUpdate(new SuggesterDefinition(ExamineLuceneSuggesterNames.DirectSpellChecker_NGramDistance, ExamineLuceneSuggesterNames.DirectSpellChecker_NGramDistance, new string[] { "fullName" }));
+            suggesters.AddOrUpdate(new SuggesterDefinition(ExamineLuceneSuggesterNames.FuzzySuggester, ExamineLuceneSuggesterNames.FuzzySuggester, new string[] { "fullName" }));
+```
+
 ## Luke
 Lucene.NET 4.8 is compatible with Java Luke 4.8.0, a useful tool for working with Lucene Indexes. Newer versions of Luke can't be used with Lucene.NET 4.8 indexes. 
 [Luke 4.8.0](https://github.com/DmitryKey/luke/releases/download/4.8.0/luke-with-deps.jar)

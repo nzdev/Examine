@@ -10,7 +10,6 @@ Suggesting and Spell Checking
 
 _**Tip**: There are many examples of searching in the [`SuggesterApiTests` source code](https://github.com/Shazwazza/Examine/blob/master/src/Examine.Test/Lucene/Suggest/SuggesterApiTests.cs) to use as examples/reference._
 
-
 ## Registering Suggesters
 
 On the index to register the Suggesters, create a SuggesterDefinitionCollection and set it on IndexOptions.SuggesterDefinitions
