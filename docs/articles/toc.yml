@@ -7,7 +7,7 @@
 - name: Sorting
   href: sorting.md
 - name: Paging
-  href: sorting.md#paging-and-limiting-results
+  href: paging.md
 - name: Suggesters
   href: suggesting.md
 - name: Spellchecking
