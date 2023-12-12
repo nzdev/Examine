@@ -7,32 +7,48 @@ using System.Linq;
 namespace Examine
 {
     /// <summary>
-    /// Manages the mappings between a field name and it's index type
+    /// Manages the mappings between a similarity name and it's similarity type
     /// </summary>
     public class ReadOnlySimilarityDefinitionCollection : IEnumerable<SimilarityDefinition>
     {
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public ReadOnlySimilarityDefinitionCollection()
-            : this(Enumerable.Empty<SimilarityDefinition>())
+            : this(default, Enumerable.Empty<SimilarityDefinition>())
         {
         }
 
-        public ReadOnlySimilarityDefinitionCollection(params SimilarityDefinition[] definitions)
-            : this((IEnumerable<SimilarityDefinition>)definitions)
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="defaultSimilarityName"></param>
+        /// <param name="definitions"></param>
+        public ReadOnlySimilarityDefinitionCollection(string? defaultSimilarityName, params SimilarityDefinition[] definitions)
+            : this(defaultSimilarityName, (IEnumerable<SimilarityDefinition>)definitions)
         {
 
         }
 
-        public ReadOnlySimilarityDefinitionCollection(IEnumerable<SimilarityDefinition> definitions)
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="defaultSimilarityName"></param>
+        /// <param name="definitions"></param>
+        public ReadOnlySimilarityDefinitionCollection(string? defaultSimilarityName, IEnumerable<SimilarityDefinition> definitions)
         {
+            DefaultSimilarityName = defaultSimilarityName;
             if (definitions == null)
+            {
                 return;
+            }
 
             foreach (var s in definitions.GroupBy(x => x.Name))
             {
-                var suggester = s.FirstOrDefault();
-                if (suggester != default)
+                var similarity = s.FirstOrDefault();
+                if (similarity != default)
                 {
-                    Definitions.TryAdd(s.Key, suggester);
+                    Definitions.TryAdd(s.Key, similarity);
                 }
             }
         }
@@ -51,12 +67,25 @@ namespace Examine
         /// </remarks>
         public virtual bool TryGetValue(string similarityName, out SimilarityDefinition similarityDefinition) => Definitions.TryGetValue(similarityName, out similarityDefinition);
 
+        /// <summary>
+        /// Count
+        /// </summary>
         public int Count => Definitions.Count;
 
+        /// <summary>
+        /// The name of the Similarity the index should use by default
+        /// </summary>
+        public string? DefaultSimilarityName { get; set; }
+
+        /// <summary>
+        /// Definitions
+        /// </summary>
         protected ConcurrentDictionary<string, SimilarityDefinition> Definitions { get; } = new ConcurrentDictionary<string, SimilarityDefinition>(StringComparer.InvariantCultureIgnoreCase);
 
+        /// <inheritdoc/>
         public IEnumerator<SimilarityDefinition> GetEnumerator() => Definitions.Values.GetEnumerator();
 
+        /// <inheritdoc/>
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

@@ -9,6 +9,9 @@ namespace Examine
     /// </summary>
     public interface IIndex
     {
+        /// <summary>
+        /// The index name
+        /// </summary>
         string Name { get; }
 
         /// <summary>
@@ -38,6 +41,11 @@ namespace Examine
         /// Returns the field definitions for the index
         /// </summary>
         ReadOnlyFieldDefinitionCollection FieldDefinitions { get; }
+
+        /// <summary>
+        /// Returns the similarity definitions for the index
+        /// </summary>
+        ReadOnlySimilarityDefinitionCollection SimilarityDefinitions { get; }
 
         /// <summary>
         /// determines whether the index exsists or not

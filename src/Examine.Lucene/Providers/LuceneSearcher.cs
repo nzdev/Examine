@@ -2,7 +2,7 @@ using System;
 using Examine.Lucene.Search;
 using Lucene.Net.Search;
 using Lucene.Net.Analysis;
-
+using Lucene.Net.Facet;
 
 namespace Examine.Lucene.Providers
 {
@@ -14,32 +14,37 @@ namespace Examine.Lucene.Providers
     {
         private readonly SearcherManager _searcherManager;
         private readonly FieldValueTypeCollection _fieldValueTypeCollection;
-        private readonly SimilarityDefinitionCollection _similarityDefinitionCollection;
+        private readonly IndexSimilarityCollection? _indexSimilarityCollection;
         private bool _disposedValue;
 
         /// <summary>
         /// Constructor allowing for creating a NRT instance based on a given writer
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="writer"></param>
+        /// <param name="searcherManager"></param>
         /// <param name="analyzer"></param>
         /// <param name="fieldValueTypeCollection"></param>
-        public LuceneSearcher(string name, SearcherManager searcherManager, Analyzer analyzer, FieldValueTypeCollection fieldValueTypeCollection, SimilarityDefinitionCollection similarityDefinitionCollection)
+        /// <param name="indexSimilarityCollection"></param>
+        public LuceneSearcher(string name,
+                              SearcherManager searcherManager,
+                              Analyzer analyzer,
+                              FieldValueTypeCollection fieldValueTypeCollection,
+                              IndexSimilarityCollection indexSimilarityCollection)
             : base(name, analyzer)
         {
             _searcherManager = searcherManager;
             _fieldValueTypeCollection = fieldValueTypeCollection;
-            _similarityDefinitionCollection = similarityDefinitionCollection;
+            _indexSimilarityCollection = indexSimilarityCollection;
         }
 
         /// <summary>
         /// Constructor allowing for creating a NRT instance based on a given writer
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="writer"></param>
+        /// <param name="searcherManager"></param>
         /// <param name="analyzer"></param>
         /// <param name="fieldValueTypeCollection"></param>
-        [Obsolete()]
+        [Obsolete("To remove in Examine V5")]
         public LuceneSearcher(string name, SearcherManager searcherManager, Analyzer analyzer, FieldValueTypeCollection fieldValueTypeCollection)
             : base(name, analyzer)
         {
@@ -47,10 +52,55 @@ namespace Examine.Lucene.Providers
             _fieldValueTypeCollection = fieldValueTypeCollection;
         }
 
-        public override ISearchContext GetSearchContext()
-            => new SearchContext(_searcherManager, _fieldValueTypeCollection, _similarityDefinitionCollection);
+        /// <summary>
+        /// Constructor allowing for creating a NRT instance based on a given writer
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="searcherManager"></param>
+        /// <param name="analyzer"></param>
+        /// <param name="fieldValueTypeCollection"></param>
+        /// <param name="facetsConfig"></param>
+        [Obsolete("To remove in Examine V5")]
+        public LuceneSearcher(string name,
+                              SearcherManager searcherManager,
+                              Analyzer analyzer,
+                              FieldValueTypeCollection fieldValueTypeCollection,
+                              FacetsConfig facetsConfig)
+            : base(name, analyzer, facetsConfig)
+        {
+            _searcherManager = searcherManager;
+            _fieldValueTypeCollection = fieldValueTypeCollection;
+        }
 
-        protected virtual void Dispose(bool disposing)
+        /// <summary>
+        /// Constructor allowing for creating a NRT instance based on a given writer
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="searcherManager"></param>
+        /// <param name="analyzer"></param>
+        /// <param name="fieldValueTypeCollection"></param>
+        /// <param name="facetsConfig"></param>
+        /// <param name="indexSimilarityCollection"></param>
+        public LuceneSearcher(string name,
+                              SearcherManager searcherManager,
+                              Analyzer analyzer,
+                              FieldValueTypeCollection fieldValueTypeCollection,
+                              FacetsConfig facetsConfig,
+                              IndexSimilarityCollection indexSimilarityCollection)
+            : base(name, analyzer, facetsConfig)
+        {
+            _searcherManager = searcherManager;
+            _fieldValueTypeCollection = fieldValueTypeCollection;
+            _indexSimilarityCollection = indexSimilarityCollection;
+        }
+
+        /// <inheritdoc/>
+        public override ISearchContext GetSearchContext()
+            => new SearchContext(_searcherManager, _fieldValueTypeCollection, _indexSimilarityCollection);
+
+        /// <inheritdoc/>
+        [Obsolete("To remove in Examine v5")]
+        protected new virtual void Dispose(bool disposing)
         {
             if (!_disposedValue)
             {
@@ -61,14 +111,12 @@ namespace Examine.Lucene.Providers
 
                 _disposedValue = true;
             }
+            base.Dispose(disposing);
         }
 
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-        }
+        /// <inheritdoc/>
+        [Obsolete("To remove in Examine V5 - IDisposable is implemented in base class")]
+        public new void Dispose() => Dispose(true);
     }
-
 }
 
