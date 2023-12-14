@@ -146,6 +146,14 @@ namespace Examine.Search
         IOrdering DrillDownQuery(Action<IDrillDownQueryDimensions> dimensions, Func<INestedQuery, INestedBooleanOperation>? baseQuery = null, Action<IDrillSideways>? drillSideways = null, BooleanOperation defaultOp = BooleanOperation.Or);
 
         /// <summary>
+        /// Executes Spatial operation on field and shape as a Query
+        /// </summary>
+        /// <param name="field">Index field name</param>
+        /// <param name="shape">Shape</param>
+        /// <returns></returns>
+        IBooleanOperation SpatialOperationQuery(string field, ExamineSpatialOperation spatialOperation, Func<IExamineSpatialShapeFactory, IExamineSpatialShape> shape);
+
+        /// <summary>
         /// Apply Filters
         /// </summary>
         /// <param name="filter"></param>

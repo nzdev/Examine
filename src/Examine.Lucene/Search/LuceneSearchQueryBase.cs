@@ -48,7 +48,6 @@ namespace Examine.Lucene.Search
 
         private BooleanOperation _boolFilterOp;
 
-
         /// <inheritdoc/>
         protected LuceneSearchQueryBase(CustomMultiFieldQueryParser queryParser,
             string? category, LuceneSearchOptions searchOptions, BooleanOperation occurance)
@@ -671,6 +670,9 @@ namespace Examine.Lucene.Search
 
         /// <inheritdoc/>
         public abstract IOrdering DrillDownQuery(Action<IDrillDownQueryDimensions> dimensions, Func<INestedQuery, INestedBooleanOperation>? baseQuery = null, Action<IDrillSideways>? drillSideways = null, BooleanOperation defaultOp = BooleanOperation.Or);
+
+        /// <inheritdoc/>
+        public abstract IBooleanOperation SpatialOperationQuery(string field, ExamineSpatialOperation spatialOperation, Func<IExamineSpatialShapeFactory, IExamineSpatialShape> shape);
 
         /// <summary>
         /// Apply a filter

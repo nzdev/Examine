@@ -209,5 +209,11 @@ namespace Examine
         public const string FacetTaxonomyFullTextSortable = "facettaxonomyfulltextsortable";
 
 
+
+        /// <summary>
+        /// GEO Spatial Shape. Index as WKT
+        /// </summary>
+        public const string GeoSpatialWKT = "spatial.geo.wkt";
+
     }
 }

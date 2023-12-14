@@ -26,6 +26,8 @@ namespace Examine.Lucene.Search
         private SearchAfterOptions? _searchAfter;
         private LuceneDrillDownQueryDrillSideways? _drillDownQueryDrillSideways;
 
+        public ISearchContext SearchContext => _searchContext;
+
         /// <inheritdoc/>
         [Obsolete("To be removed in Examine V5")]
         public LuceneSearchQuery(
@@ -109,6 +111,7 @@ namespace Examine.Lucene.Search
         /// </summary>
         /// <param name="fields"></param>
         /// <returns></returns>
+
         public virtual IBooleanOperation OrderByDescending(params SortableField[] fields) => OrderByInternal(true, fields);
 
         /// <inheritdoc/>
@@ -147,7 +150,7 @@ namespace Examine.Lucene.Search
                 //if no fields are specified then use all fields
                 fields ??= AllFields;
 
-                var types = fields.Select(f => _searchContext.GetFieldValueType(f)).OfType<IIndexFieldValueType>();
+                var types = fields.Select(f => SearchContext.GetFieldValueType(f)).OfType<IIndexFieldValueType>();
 
                 //Strangely we need an inner and outer query. If we don't do this then the lucene syntax returned is incorrect 
                 //since it doesn't wrap in parenthesis properly. I'm unsure if this is a lucene issue (assume so) since that is what
@@ -189,7 +192,7 @@ namespace Examine.Lucene.Search
 
                 foreach (var f in fields)
                 {
-                    var valueType = _searchContext.GetFieldValueType(f);
+                    var valueType = SearchContext.GetFieldValueType(f);
 
                     if (valueType is IIndexRangeValueType<T> type)
                     {
@@ -359,19 +362,33 @@ namespace Examine.Lucene.Search
                     case SortType.Double:
                         defaultSort = SortFieldType.DOUBLE;
                         break;
+                    case SortType.SpatialDistance:
+                        defaultSort = SortFieldType.CUSTOM;
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
 
                 //get the sortable field name if this field type has one
-                var valType = _searchContext.GetFieldValueType(fieldName);
+                var valType = SearchContext.GetFieldValueType(fieldName);
 
                 if (valType?.SortableFieldName != null)
                 {
                     fieldName = valType.SortableFieldName;
                 }
-
-                SortFields.Add(new SortField(fieldName, defaultSort, descending));
+                if (f.SortType == SortType.SpatialDistance)
+                {
+                    var spatialField = valType as ISpatialIndexFieldValueTypeBase;
+                    if (spatialField is null)
+                    {
+                        throw new NotSupportedException("Spatial Distance Sort requires the field to implement ISpatialIndexFieldValueTypeBase");
+                    }
+                    SortFields.Add(spatialField.ToSpatialDistanceSortField(f, descending ? SortDirection.Descending : SortDirection.Ascending));
+                }
+                else
+                {
+                    SortFields.Add(new SortField(fieldName, defaultSort, descending));
+                }
             }
 
             return CreateOp();
@@ -448,7 +465,7 @@ namespace Examine.Lucene.Search
         {
             longRanges ??= Array.Empty<Int64Range>();
 
-            var valueType = _searchContext.GetFieldValueType(field) as IIndexFacetValueType;
+            var valueType = SearchContext.GetFieldValueType(field) as IIndexFacetValueType;
             var facet = new FacetLongField(field, longRanges, GetFacetField(field), isTaxonomyIndexed: valueType?.IsTaxonomyFaceted ?? false);
 
             _facetSelectionOptions.FacetFields.Add(facet);
@@ -511,6 +528,22 @@ namespace Examine.Lucene.Search
             var op = CreateOp();
             var queryOp = op.And();
             return queryOp;
+        }
+
+        /// <inheritdoc/>
+        public override IBooleanOperation SpatialOperationQuery(string field, ExamineSpatialOperation spatialOperation, Func<IExamineSpatialShapeFactory, IExamineSpatialShape> shape)
+            => SpatialOperationQueryInternal(field, spatialOperation, shape, Occurrence);
+
+        internal IBooleanOperation SpatialOperationQueryInternal(string field, ExamineSpatialOperation spatialOperation, Func<IExamineSpatialShapeFactory, IExamineSpatialShape> shape, Occur occurance)
+        {
+            var spatialField = SearchContext.GetFieldValueType(field) as ISpatialIndexFieldValueTypeBase;
+            var queryToAdd = spatialField.GetQuery(field, spatialOperation, shape);
+            if (queryToAdd != null)
+            {
+                Query.Add(queryToAdd, occurance);
+            }
+
+            return CreateOp();
         }
     }
 }
