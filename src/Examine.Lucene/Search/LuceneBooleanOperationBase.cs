@@ -122,6 +122,42 @@ namespace Examine.Lucene.Search
         /// <summary>
         /// Used to add a operation
         /// </summary>
+        /// <param name="baseQueryBuilder">Function that the base query will be passed into to create the outer query</param>
+        /// <param name="inner"></param>
+        /// <param name="outerOp"></param>
+        /// <param name="defaultInnerOp"></param>
+        /// <returns></returns>
+        protected internal LuceneBooleanOperationBase OpBaseQuery(
+            Func<Query,Query> baseQueryBuilder,
+            Func<INestedQuery, INestedBooleanOperation> inner,
+            BooleanOperation outerOp,
+            BooleanOperation? defaultInnerOp = null)
+        {
+            _search.Queries.Push(new BooleanQuery());
+
+            //change the default inner op if specified
+            var currentOp = _search.BooleanOperation;
+            if (defaultInnerOp != null)
+            {
+                _search.BooleanOperation = defaultInnerOp.Value;
+            }
+
+            //run the inner search
+            inner(_search);
+
+            //reset to original op if specified
+            if (defaultInnerOp != null)
+            {
+                _search.BooleanOperation = currentOp;
+            }
+            var baseBoolQuery = _search.Queries.Pop();
+            var baseQuery = baseQueryBuilder(baseBoolQuery);
+            return _search.LuceneQuery(baseQuery, outerOp);
+        }
+
+        /// <summary>
+        /// Used to add a operation
+        /// </summary>
         /// <param name="baseFilterBuilder">Function that the base query will be passed into to create the outer Filter</param>
         /// <param name="inner"></param>
         /// <param name="outerOp"></param>
@@ -176,5 +212,7 @@ namespace Examine.Lucene.Search
         /// <inheritdoc/>
         public abstract IQueryExecutor WithFacets(Action<IFacetOperations> facets);
 
+        /// <inheritdoc/>
+        public abstract IOrdering SetSearchAfter(SearchAfter searchAfter);
     }
 }

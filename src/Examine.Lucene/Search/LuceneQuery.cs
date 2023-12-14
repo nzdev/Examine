@@ -137,6 +137,10 @@ namespace Examine.Lucene.Search
             => _search.RangeQueryInternal(fields, min, max, minInclusive: minInclusive, maxInclusive: maxInclusive, _occurrence);
 
         /// <inheritdoc/>
+        public IOrdering DrillDownQuery(Action<IDrillDownQueryDimensions> dimensions, Func<INestedQuery, INestedBooleanOperation>? baseQuery = null, Action<IDrillSideways>? drillSideways = null, BooleanOperation defaultOp = BooleanOperation.Or) =>
+            _search.DrillDownQueryInternal(baseQuery, dimensions, drillSideways, defaultOp, _occurrence);
+
+        /// <inheritdoc/>
         public IQuery WithFilter(Action<IFilter> filter) => _search.WithFilter(filter);
 
     }

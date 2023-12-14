@@ -41,5 +41,12 @@ namespace Examine.Search
         /// </summary>
         /// <returns></returns>
         IOrdering SelectAllFields();
+
+        /// <summary>
+        /// Set where to continue searching from
+        /// </summary>
+        /// <param name="searchAfter">Search After</param>
+        /// <returns></returns>
+        IOrdering SetSearchAfter(SearchAfter searchAfter);
     }
 }

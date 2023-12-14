@@ -82,5 +82,12 @@ namespace Examine.Lucene.Search
             facets.Invoke(luceneFacetOperation);
             return luceneFacetOperation;
         }
+
+        /// <inheritdoc/>
+        public override IOrdering SetSearchAfter(SearchAfter searchAfter)
+        {
+            _search.SetSearchAfter(searchAfter);
+            return this;
+        }
     }
 }
