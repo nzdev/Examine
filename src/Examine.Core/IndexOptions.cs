@@ -9,6 +9,7 @@ namespace Examine
         public IndexOptions()
         {
             FieldDefinitions = new FieldDefinitionCollection();
+            SimilarityDefinitions = new SimilarityDefinitionCollection();
         }
 
         /// <summary>
@@ -20,5 +21,10 @@ namespace Examine
         /// The validator for the <see cref="IIndex"/>
         /// </summary>
         public IValueSetValidator? Validator { get; set; }
+
+        /// <summary>
+        /// The similarties for the <see cref="IIndex"/>
+        /// </summary>
+        public SimilarityDefinitionCollection SimilarityDefinitions { get; set; }
     }
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using Examine.Lucene;
 using Examine.Lucene.Directories;
 using Examine.Lucene.Providers;
+using Examine.Lucene.Search;
 using Lucene.Net.Analysis;
 using Lucene.Net.Facet;
 using Microsoft.Extensions.DependencyInjection;
@@ -109,6 +110,9 @@ namespace Examine
                         options.DirectoryFactory = services.GetRequiredService<TDirectoryFactory>();
                         options.FacetsConfig = config.FacetsConfig ?? new FacetsConfig();
                         options.UseTaxonomyIndex = config.UseTaxonomyIndex;
+                        options.IndexSimilaritiesFactory = config.IndexSimilaritiesFactory;
+                        options.DefaultSimilarityName = config.DefaultSimilarityName;
+                        options.SimilarityDefinitions = config.SimilarityDefinitions ?? new SimilarityDefinitionCollection(ExamineLuceneSimilarityNames.ExamineDefault).AddExamineLuceneSimilarities();
                     }));
 
             return serviceCollection.AddSingleton<IIndex>(services =>

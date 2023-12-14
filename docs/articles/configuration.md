@@ -282,6 +282,71 @@ To explore other configuration settings see the links below:
 - [FacetsConfig API docs](https://lucenenet.apache.org/docs/4.8.0-beta00016/api/facet/Lucene.Net.Facet.FacetsConfig.html#methods)
 - [Facets with lucene](https://norconex.com/facets-with-lucene/). See how the config is used in the code examples.
 
+## Relevance
+
+### Similarity definitions
+
+A Similarity Definition is a mapping of a similarity name to a Similarity. By default similarity is set to the default similarity Type: [`ExamineLuceneSimilarityNames.ExamineDefault`](xref:Examine.Lucene.Search.ExamineLuceneSimilarityNames#ExamineDefault).
+
+You can map a similarity name to any similarity type when configuring the index.
+
+### Similarity types
+
+These are the default similarity types provided with Examine.
+
+| Similarity Name                | Description  |
+| ------------------------------ | ------------ |
+| Examine.Default  | Default Similarity for Examine Lucene. ( V3/V4 Lucene.Classic), (V5 Lucene.BM25) |
+| Lucene.Classic | Classic Similarity for Lucene|
+| Lucene.BM25 | BM25Similarity with default parameters for Lucene|
+| Lucene.LMDirichlet  | LMDirichletSimilarity with default parameters for Lucene|
+| Lucene.LMJelinekMercerTitle   | LMJelinekMercerSimilarity with parameter 0.1f which is suitable for title searches|
+| Lucene.LMJelinekMercerLongText   | LMJelinekMercerSimilarity with parameter 0.7f which is suitable for long text searches.|
+
+### Similarity Configuration
+
+Configuration of Examine indexes is done with [.NET's Options pattern](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/configuration/options?view=aspnetcore-5.0). For Examine, this is done with named options: [`IConfigureNamedOptions`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.options.iconfigurenamedoptions-1).
+
+* __SimilarityDefinitions__ _[`SimilarityDefinitionCollection`](xref:Examine.SimilarityDefinitionCollection)_ - Manages the mappings between a similarity name and it's similarity type
+
+* __[ISimilarityTypeFactory](xref:Examine.Lucene.ISimilarityTypeFactory)__ _`IReadOnlyDictionary<string, ISimilarityTypeFactory>`_ - Allows you to define custom Similarity Types
+
+```cs
+/// <summary>
+/// Configure Examine indexes using .NET IOptions
+/// </summary>
+public sealed class ConfigureIndexOptions : IConfigureNamedOptions<LuceneDirectoryIndexOptions>
+{
+    public void Configure(string name, LuceneDirectoryIndexOptions options)
+    {
+        switch (name)
+        {
+            case "MyIndex":
+                // Set the "Examine.Default" similarity to map to the 'Classic' similarity type.
+                options.SimilarityDefinitions.AddOrUpdate(
+                    new SimilarityDefinition("Examine.Default", "Lucene.Classic"));
+
+                // Set the "Lucene.BM25" similarity to be the default similarity to use when searching the Index.
+                options.SimilarityDefinitions.SetDefaultSimilarityName("Lucene.BM25");
+                break;
+        }
+    }
+
+    public void Configure(LuceneDirectoryIndexOptions options) 
+        => Configure(string.Empty, options);
+}
+```
+
+#### After construction
+
+You can modify the similarity definitions [SimilarityDefinitionCollection](xref:Examine.SimilarityDefinitionCollection) for an index after it is constructed by using any of the following methods:
+
+* `myIndex.SimilarityDefinitionCollection.TryAdd`
+* `myIndex.SimilarityDefinitionCollection.AddOrUpdate`
+* `myIndex.SimilarityDefinitionCollection.GetOrAdd`
+
+These modifications __must__ be done before any indexing or searching is executed.
+
 ## Luke
 Lucene.NET 4.8 is compatible with Java Luke 4.8.0, a useful tool for working with Lucene Indexes. Newer versions of Luke can't be used with Lucene.NET 4.8 indexes. 
 [Luke 4.8.0](https://github.com/DmitryKey/luke/releases/download/4.8.0/luke-with-deps.jar)

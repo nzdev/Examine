@@ -14,6 +14,7 @@ namespace Examine.Lucene.Providers
     {
         private readonly SearcherTaxonomyManager _searcherManager;
         private readonly FieldValueTypeCollection _fieldValueTypeCollection;
+        private readonly IndexSimilarityCollection? _indexSimilarityCollection;
         private bool _disposedValue;
 
         /// <summary>
@@ -31,16 +32,33 @@ namespace Examine.Lucene.Providers
             _fieldValueTypeCollection = fieldValueTypeCollection;
         }
 
+        /// <summary>
+        /// Constructor allowing for creating a NRT instance based on a given writer
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="searcherManager"></param>
+        /// <param name="analyzer"></param>
+        /// <param name="fieldValueTypeCollection"></param>
+        /// <param name="facetsConfig"></param>
+        /// <param name="indexSimilarityCollection"></param>
+        public LuceneTaxonomySearcher(string name, SearcherTaxonomyManager searcherManager, Analyzer analyzer, FieldValueTypeCollection fieldValueTypeCollection, FacetsConfig facetsConfig, IndexSimilarityCollection? indexSimilarityCollection)
+            : base(name, analyzer, facetsConfig)
+        {
+            _searcherManager = searcherManager;
+            _fieldValueTypeCollection = fieldValueTypeCollection;
+            _indexSimilarityCollection = indexSimilarityCollection;
+        }
+
         /// <inheritdoc/>
         public override ISearchContext GetSearchContext()
-            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection);
+            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection, _indexSimilarityCollection);
 
         /// <summary>
         /// Gets the Taxonomy SearchContext
         /// </summary>
         /// <returns></returns>
         public virtual ITaxonomySearchContext GetTaxonomySearchContext()
-            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection);
+            => new TaxonomySearchContext(_searcherManager, _fieldValueTypeCollection, _indexSimilarityCollection);
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)

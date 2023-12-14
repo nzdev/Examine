@@ -76,5 +76,10 @@ namespace Examine.Lucene.Search
         /// when no Lucene.Net.Documents.DateTools.Resolution is defined for this field.
         /// </summary>
         public DateResolution? DateResolution { get; set; }
+
+        /// <summary>
+        /// Similarity Name
+        /// </summary>
+        public string? SimilarityName { get; set; }
     }
 }

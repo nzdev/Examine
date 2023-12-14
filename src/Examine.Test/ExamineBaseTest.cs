@@ -9,6 +9,7 @@ using Moq;
 using Examine.Lucene.Directories;
 using System.Collections.Generic;
 using Lucene.Net.Facet;
+using Examine.Lucene.Search;
 
 namespace Examine.Test
 {
@@ -25,7 +26,7 @@ namespace Examine.Test
             _loggerFactory.CreateLogger(typeof(ExamineBaseTest)).LogDebug("Initializing test");
         }
 
-        public TestIndex GetTestIndex(Directory d, Analyzer analyzer, FieldDefinitionCollection fieldDefinitions = null, IndexDeletionPolicy indexDeletionPolicy = null, IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null, FacetsConfig facetsConfig = null)
+        public TestIndex GetTestIndex(Directory d, Analyzer analyzer, FieldDefinitionCollection fieldDefinitions = null, IndexDeletionPolicy indexDeletionPolicy = null, IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null, FacetsConfig facetsConfig = null, SimilarityDefinitionCollection similarityDefinitions = null, IReadOnlyDictionary<string, ISimilarityTypeFactory> indexSimilarityFactory = null)
         {
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
             return new TestIndex(
@@ -37,7 +38,9 @@ namespace Examine.Test
                     Analyzer = analyzer,
                     IndexDeletionPolicy = indexDeletionPolicy,
                     IndexValueTypesFactory = indexValueTypesFactory,
-                    FacetsConfig = facetsConfig ?? new FacetsConfig()
+                    FacetsConfig = facetsConfig ?? new FacetsConfig(),
+                    SimilarityDefinitions = similarityDefinitions ?? new SimilarityDefinitionCollection(ExamineLuceneSimilarityNames.ExamineDefault).AddExamineLuceneSimilarities(),
+                    IndexSimilaritiesFactory = indexSimilarityFactory
                 }));
         }
 
@@ -50,7 +53,7 @@ namespace Examine.Test
                 writer);
         }
 
-        public TestIndex GetTaxonomyTestIndex(Directory d, Directory taxonomyDirectory, Analyzer analyzer, FieldDefinitionCollection fieldDefinitions = null, IndexDeletionPolicy indexDeletionPolicy = null, IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null, FacetsConfig facetsConfig = null)
+        public TestIndex GetTaxonomyTestIndex(Directory d, Directory taxonomyDirectory, Analyzer analyzer, FieldDefinitionCollection fieldDefinitions = null, IndexDeletionPolicy indexDeletionPolicy = null, IReadOnlyDictionary<string, IFieldValueTypeFactory> indexValueTypesFactory = null, FacetsConfig facetsConfig = null, SimilarityDefinitionCollection similarityDefinitions = null)
         {
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
             return new TestIndex(

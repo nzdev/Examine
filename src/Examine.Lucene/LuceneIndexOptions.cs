@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Examine.Lucene.Search;
 using Lucene.Net.Analysis;
 using Lucene.Net.Analysis.Standard;
 using Lucene.Net.Facet;
@@ -42,5 +43,16 @@ namespace Examine.Lucene
         /// Gets or Sets whether to use a Taxonomy Index
         /// </summary>
         public bool UseTaxonomyIndex { get; set; }
+
+        /// <summary>
+        /// Specifies the index Similarity types to use for this index, if this is not specified then the result of <see cref="SimilarityFactoryCollection.GetDefaultSimilarities"/> will be used.
+        /// This is generally used to initialize any custom similarity types for your searcher since the Similarity collection cannot be modified at runtime.
+        /// </summary>
+        public IReadOnlyDictionary<string, ISimilarityTypeFactory>? IndexSimilaritiesFactory { get; set; }
+
+        /// <summary>
+        /// Index Searcher Default Similarity Name
+        /// </summary>
+        public string? DefaultSimilarityName { get; set; }
     }
 }

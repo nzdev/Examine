@@ -9,7 +9,7 @@ using Lucene.Net.Facet;
 using Lucene.Net.Index;
 using Lucene.Net.Queries;
 using Lucene.Net.Search;
-using static Lucene.Net.Util.OfflineSorter;
+using Lucene.Net.Search.Similarities;
 
 namespace Examine.Lucene.Search
 {
@@ -25,6 +25,7 @@ namespace Examine.Lucene.Search
         private readonly LuceneFacetSelectionOptions _facetSelectionOptions = new LuceneFacetSelectionOptions();
         private SearchAfterOptions? _searchAfter;
         private LuceneDrillDownQueryDrillSideways? _drillDownQueryDrillSideways;
+        private readonly string? _similarityName;
 
         public ISearchContext SearchContext => _searchContext;
 
@@ -36,6 +37,7 @@ namespace Examine.Lucene.Search
             : base(CreateQueryParser(searchContext, analyzer, searchOptions), category, searchOptions, occurance)
         {
             _searchContext = searchContext;
+            _similarityName = searchOptions.SimilarityName;
         }
 
         /// <inheritdoc/>
@@ -313,7 +315,7 @@ namespace Examine.Lucene.Search
                 filter = null;
             }
 
-            var executor = new LuceneSearchExecutor(options, query, SortFields, _searchContext, _fieldsToLoad, _facetSelectionOptions, _facetsConfig, filter, _searchAfter, _drillDownQueryDrillSideways);
+            var executor = new LuceneSearchExecutor(options, query, SortFields, _searchContext, _fieldsToLoad, _facetSelectionOptions, _facetsConfig, filter, _searchAfter, _drillDownQueryDrillSideways, _similarityName);
 
             var pagesResults = executor.Execute();
 

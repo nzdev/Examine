@@ -11,6 +11,7 @@ using Lucene.Net.Facet.Taxonomy;
 using Lucene.Net.Index;
 using Lucene.Net.Search;
 using LuceneFacetResult = Lucene.Net.Facet.FacetResult;
+using Lucene.Net.Search.Similarities;
 
 namespace Examine.Lucene.Search
 {
@@ -31,16 +32,18 @@ namespace Examine.Lucene.Search
         private readonly Filter? _filter;
         private readonly LuceneDrillDownQueryDrillSideways? _drillDownQueryDrillSideways;
         private readonly SearchAfterOptions? _searchAfter;
+        private readonly string? _similarityName;
         private int? _maxDoc;
 
         internal LuceneSearchExecutor(QueryOptions? options, Query query, IEnumerable<SortField> sortField, ISearchContext searchContext,
             ISet<string>? fieldsToLoad, LuceneFacetSelectionOptions facetFieldsSelectionOptions, FacetsConfig? facetsConfig, Filter? filter, SearchAfterOptions? searchAfter,
-            LuceneDrillDownQueryDrillSideways? drillDownQueryDrillSideways)
+            LuceneDrillDownQueryDrillSideways? drillDownQueryDrillSideways, string? similarityName)
         {
             _options = options ?? QueryOptions.Default;
             _luceneQueryOptions = _options as LuceneQueryOptions;
             _luceneQuery = query ?? throw new ArgumentNullException(nameof(query));
             _fieldsToLoad = fieldsToLoad;
+            _similarityName = similarityName;
             _sortField = sortField ?? throw new ArgumentNullException(nameof(sortField));
             _searchContext = searchContext ?? throw new ArgumentNullException(nameof(searchContext));
             _facetFieldsSelectionOptions = facetFieldsSelectionOptions;
@@ -162,6 +165,31 @@ namespace Examine.Lucene.Search
                     (_facetFieldsSelectionOptions.FacetFields.Any() || _facetFieldsSelectionOptions.FacetAllFieldsWithHits))
                 {
                     facetsCollector = new FacetsCollector();
+                }
+
+
+                var defaultSimilarityDefinition = _searchContext.GetDefaultSimilarity();
+                var similarityDefinition = string.IsNullOrWhiteSpace(_similarityName) ? null : _searchContext.GetSimilarity(_similarityName);
+
+                if (similarityDefinition != null)
+                {
+                    var similarity = similarityDefinition?.GetSimilarity();
+                    if (similarity != null)
+                    {
+                        searcher.IndexSearcher.Similarity = similarity;
+                    }
+                }
+                else if (defaultSimilarityDefinition != null)
+                {
+                    var similarity = similarityDefinition?.GetSimilarity();
+                    if (similarity != null)
+                    {
+                        searcher.IndexSearcher.Similarity = similarity;
+                    }
+                }
+                else
+                {
+                    searcher.IndexSearcher.Similarity = LuceneSearchOptionsSimilarities.ExamineDefault;
                 }
 
                 var drillDownQuery = _luceneQuery as DrillDownQuery;
